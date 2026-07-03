@@ -1,17 +1,7 @@
-const CACHE = 'closet-v1';
-const ASSETS = [
-  '/closet/',
-  '/closet/index.html',
-  '/closet/app.jsx',
-  '/closet/manifest.json',
-  '/closet/icon-192.png',
-  '/closet/icon-512.png',
-];
+const CACHE = 'closet-v3';
 
+// Network first — always tries to get the latest, falls back to cache if offline
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS).catch(() => {}))
-  );
   self.skipWaiting();
 });
 
@@ -25,15 +15,22 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  // Only cache same-origin requests (app files), not Supabase API calls
+  const url = new URL(e.request.url);
+  const isAppFile = url.origin === self.location.origin;
+
+  if (!isAppFile) return; // let Supabase calls pass through normally
+
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      return cached || fetch(e.request).then(res => {
-        if (res && res.status === 200 && e.request.method === 'GET') {
+    fetch(e.request)
+      .then(res => {
+        // Cache a copy of the fresh response
+        if (res && res.status === 200) {
           const clone = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, clone));
         }
         return res;
-      }).catch(() => cached);
-    })
+      })
+      .catch(() => caches.match(e.request)) // offline fallback
   );
 });
