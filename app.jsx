@@ -240,7 +240,7 @@ const CSS = `
   /* sheets */
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(5px);}
   @media(min-width:768px){.overlay{align-items:center;}}
-  .sheet{background:var(--panel);border-radius:24px 24px 0 0;max-height:94vh;width:100%;display:flex;flex-direction:column;overflow:hidden;}
+  .sheet{background:var(--panel);border-radius:24px 24px 0 0;max-height:96vh;width:100%;display:flex;flex-direction:column;overflow:hidden;}
   @media(min-width:768px){.sheet{border-radius:20px;max-width:580px;max-height:88vh;}}
   .sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:14px auto 0;flex-shrink:0;}
   @media(min-width:768px){.sheet-handle{display:none;}}
@@ -619,7 +619,7 @@ function EditWardrobeSheet({item,onSave,onCancel,stores,onAddStore}){
 function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete}){
   const [showLog,setShowLog]=useState(false);
   return <Sheet title={item.name||'Untitled'} onClose={onClose}>
-    <div style={{width:'100%',aspectRatio:'1/1',maxHeight:260,background:'#fff',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',borderRadius:14,marginBottom:14}}>
+    <div style={{width:'100%',aspectRatio:'4/5',background:'#fff',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',borderRadius:14,marginBottom:14}}>
       {item.photoUrl?<img src={item.photoUrl} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>:<span style={{fontSize:52}}>{CAT_EMOJI[item.category]||'👗'}</span>}
     </div>
     {!item.complete&&<div style={{background:'var(--accent-bg)',borderRadius:10,padding:'9px 12px',marginBottom:12,border:'1px solid #DEC9AF',fontSize:12,color:'var(--accent)'}}>Some details are still missing — tap Edit to fill them in.</div>}
