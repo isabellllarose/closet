@@ -1,5 +1,5 @@
 /* global React, ReactDOM */
-const { useState, useRef, useEffect, useCallback } = React;
+const { useState, useRef, useEffect } = React;
 
 // ── Supabase ──────────────────────────────────────────────────────────────────
 const SB_URL = 'https://bxlpdmnxoslukvrpdfke.supabase.co';
@@ -21,59 +21,41 @@ const sb = {
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 function formatDate(iso) {
-  // iso = 'YYYY-MM-DD' → '24 Aug 2026'
   if (!iso) return null;
   const [y,m,d] = iso.split('-');
   return `${parseInt(d)} ${MONTHS[parseInt(m)-1]} ${y}`;
 }
-
-function toIso(d) {
-  // Date object → 'YYYY-MM-DD'
-  if (!d) return null;
-  return d.toISOString().slice(0,10);
-}
-
+function toIso(d) { if(!d)return null; return d.toISOString().slice(0,10); }
 function todayIso() { return toIso(new Date()); }
-
 function daysAgoLabel(isoDate) {
   if (!isoDate) return 'Never worn';
-  const then = new Date(isoDate);
-  const now  = new Date();
-  const days = Math.round((now - then) / 86400000);
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  if (days < 7)  return `${days}d ago`;
-  if (days < 30) return `${Math.round(days/7)}w ago`;
+  const days = Math.round((new Date() - new Date(isoDate)) / 86400000);
+  if (days === 0) return 'Today'; if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days}d ago`; if (days < 30) return `${Math.round(days/7)}w ago`;
   return `${Math.round(days/30)}mo ago`;
 }
-
-function isOverdue(isoDate, thresholdDays=30) {
+function isOverdue(isoDate, n=30) {
   if (!isoDate) return true;
-  const days = Math.round((new Date() - new Date(isoDate)) / 86400000);
-  return days > thresholdDays;
+  return Math.round((new Date() - new Date(isoDate)) / 86400000) > n;
 }
 
-// ── Other helpers ─────────────────────────────────────────────────────────────
-const uid   = () => `${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
-const today2 = () => new Date().toISOString().slice(0,7); // for dateBought YYYY-MM
-
+// ── Misc helpers ──────────────────────────────────────────────────────────────
+const uid    = () => `${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+const today2 = () => new Date().toISOString().slice(0,7);
 const toRow  = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,brand:i.brand||null,store:i.store||null,color:i.color||null,size:i.size||null,size_label:i.sizeLabel||i.size||null,photo_url:i.photoUrl||null,occasions:i.occasions||[],date_bought:i.dateBought||null,last_worn_date:i.lastWornDate||null,wear_count:i.wearCount||0,notes:i.notes||null,complete:!!i.complete});
 const fromRow= r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,brand:r.brand,store:r.store,color:r.color,size:r.size,sizeLabel:r.size_label,photoUrl:r.photo_url,occasions:r.occasions||[],dateBought:r.date_bought,lastWornDate:r.last_worn_date,wearCount:r.wear_count||0,notes:r.notes,complete:r.complete});
 const toWR   = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,store:i.store||null,brand:i.brand||null,url:i.url||null,price:i.price||null,orig_price:i.origPrice||null,on_sale:!!i.onSale,rating:i.rating||3,photo_url:i.photoUrl||null,color:i.color||null,notes:i.notes||null,added_date:i.addedDate||today2()});
 const fromWR = r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,store:r.store,brand:r.brand,url:r.url,price:r.price,origPrice:r.orig_price,onSale:r.on_sale,rating:r.rating||3,photoUrl:r.photo_url,color:r.color,notes:r.notes,addedDate:r.added_date});
 const toOR   = o => ({id:o.id,name:o.name,occasion:o.occasion||null,notes:o.notes||null,item_ids:o.itemIds||[],item_positions:o.positions||null,wear_count:o.wearCount||0,last_worn_date:o.lastWornDate||null});
 const fromOR = r => ({id:r.id,name:r.name,occasion:r.occasion,notes:r.notes,itemIds:r.item_ids||[],positions:r.item_positions||null,wearCount:r.wear_count||0,lastWornDate:r.last_worn_date});
-
-const findSimilar = (wish,wardrobe) => {
-  if(!wish.category)return[];
-  return wardrobe.filter(w=>{if(!w.complete)return false;const cw=(wish.color||'').toLowerCase().split(' ')[0];return w.category===wish.category&&cw&&(w.color||'').toLowerCase().includes(cw);});
-};
+const findSimilar = (wish,wardrobe) => { if(!wish.category)return[]; return wardrobe.filter(w=>{if(!w.complete)return false;const cw=(wish.color||'').toLowerCase().split(' ')[0];return w.category===wish.category&&cw&&(w.color||'').toLowerCase().includes(cw);}); };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const CATEGORY_MAP = {
-  'Tops':       ['T-shirts','Shirts','Blouses','Knits & Jumpers','Tanks & Singlets','Crop tops','Hoodies & Sweatshirts'],
+  'Tops':       ['T-shirts','Long sleeve tops','Shirts','Blouses','Knits & Jumpers','Tanks & Singlets','Crop tops','Hoodies & Sweatshirts'],
   'Bottoms':    ['Jeans','Trousers','Shorts','Skirts','Mini skirts','Midi skirts','Maxi skirts','Flares','Leggings'],
   'Dresses':    ['Mini','Midi','Maxi','Slip','Shirt dress','Wrap dress'],
   'Activewear': ['Sports tops','Sports bras','Sports bottoms','Gym sets','Tights','Bike shorts'],
@@ -90,6 +72,14 @@ const OCC_C     = {Casual:{bg:'#EEF5EC',b:'#89BE7B',t:'#3A7A2B'},Work:{bg:'#EAF0
 const CAT_EMOJI = {Tops:'👕',Bottoms:'👖',Dresses:'👗',Activewear:'🏃',Outerwear:'🧥',Shoes:'👟',Bags:'👜',Accessories:'💍',Swimwear:'👙',Lingerie:'🩱'};
 const NEED_LBL  = ['','Nice to have','Want it','Really want it','Need it','Genuinely need'];
 const NAV       = [{key:'wardrobe',label:'Wardrobe'},{key:'outfits',label:'Outfits'},{key:'wishlist',label:'Wishlist'},{key:'stats',label:'Stats'},{key:'sizes',label:'Sizes'},{key:'ask',label:'Ask'}];
+
+// Which wardrobe categories map to which size-guide category label
+const SIZE_CAT_MAP = {
+  'Tops':'Tops','Bottoms':'Bottoms','Dresses':'Dresses',
+  'Activewear':'Activewear','Outerwear':'Outerwear',
+  'Shoes':'Shoes','Bags':null,'Accessories':null,'Swimwear':'Swimwear','Lingerie':'Lingerie'
+};
+
 const SIZE_GUIDES = [
   {store:'Cotton On',cat:'Tops & Bottoms',country:'AU',sizes:[{l:'XS',au:'6',bust:'80–83',waist:'62–65',hip:'87–90'},{l:'S',au:'8',bust:'84–87',waist:'66–69',hip:'91–94'},{l:'M',au:'10',bust:'88–91',waist:'70–73',hip:'95–98'},{l:'L',au:'12',bust:'92–95',waist:'74–77',hip:'99–102'},{l:'XL',au:'14',bust:'96–101',waist:'78–83',hip:'103–108'}]},
   {store:'Zara',cat:'Tops & Bottoms',country:'AU/EU',sizes:[{l:'XS',au:'6',bust:'79–81',waist:'61–63',hip:'87–89'},{l:'S',au:'8',bust:'83–85',waist:'65–67',hip:'91–93'},{l:'M',au:'10–12',bust:'87–89',waist:'69–71',hip:'95–97'},{l:'L',au:'14',bust:'91–93',waist:'73–75',hip:'99–101'},{l:'XL',au:'16',bust:'96–98',waist:'79–81',hip:'105–107'}]},
@@ -102,6 +92,21 @@ const SIZE_GUIDES = [
   {store:'Lululemon',cat:'Activewear',country:'AU',sizes:[{l:'2',au:'4',bust:'—',waist:'58–61',hip:'83–86'},{l:'4',au:'6',bust:'—',waist:'61–64',hip:'86–89'},{l:'6',au:'8',bust:'—',waist:'64–67',hip:'89–92'},{l:'8',au:'10',bust:'—',waist:'67–70',hip:'92–95'},{l:'10',au:'12',bust:'—',waist:'70–73',hip:'95–98'}]},
   {store:'Nike',cat:'Activewear',country:'AU',sizes:[{l:'XS',au:'6–8',bust:'78–83',waist:'60–65',hip:'85–90'},{l:'S',au:'8–10',bust:'83–88',waist:'65–70',hip:'90–95'},{l:'M',au:'10–12',bust:'88–93',waist:'70–75',hip:'95–100'},{l:'L',au:'12–14',bust:'93–98',waist:'75–80',hip:'100–105'}]},
 ];
+
+// ── My sizes summary for a store ──────────────────────────────────────────────
+function getMySizeSummary(storeName, wardrobe) {
+  const items = wardrobe.filter(w => w.store === storeName && w.size);
+  if (!items.length) return null;
+  // group by category, deduplicate sizes
+  const groups = {};
+  items.forEach(item => {
+    const cat = SIZE_CAT_MAP[item.category] || item.category;
+    if (!cat) return;
+    if (!groups[cat]) groups[cat] = new Set();
+    groups[cat].add(item.size);
+  });
+  return Object.entries(groups).map(([cat, sizes]) => `${cat}: ${[...sizes].join(', ')}`);
+}
 
 // ── CSS ───────────────────────────────────────────────────────────────────────
 const CSS = `
@@ -174,6 +179,7 @@ const CSS = `
   th{background:var(--cream);padding:6px 8px;text-align:left;font-weight:500;font-size:9px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);white-space:nowrap;border-top:1px solid var(--border);}
   td{padding:6px 8px;border-top:1px solid var(--border);color:var(--ink);white-space:nowrap;}
   .my-row td{background:var(--accent-bg);font-weight:500;}
+  .my-sizes-summary{padding:10px 14px 12px;border-top:1px solid var(--border);background:var(--accent-bg);}
   .ask-wrap{padding:14px 16px;display:flex;flex-direction:column;gap:10px;}
   @media(min-width:768px){.ask-wrap{max-width:640px;}}
   .ask-box{background:#fff;border-radius:14px;border:1px solid var(--border);overflow:hidden;}
@@ -215,37 +221,50 @@ const CSS = `
   .pz img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
   .pz input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
 
-  /* ── CALENDAR PICKER ── */
+  /* ── CALENDAR ── */
   .cal-overlay{position:fixed;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.4);backdrop-filter:blur(3px);}
-  .cal-box{background:#fff;border-radius:20px;padding:20px;width:320px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.18);}
+  .cal-box{background:#fff;border-radius:20px;padding:20px;width:320px;max-width:92vw;box-shadow:0 8px 32px rgba(0,0,0,.18);}
   .cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
   .cal-title{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:300;}
   .cal-nav{background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);padding:4px 8px;border-radius:6px;}
   .cal-nav:hover{background:var(--cream);}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
   .cal-day-lbl{font-size:10px;color:var(--muted);text-align:center;padding:4px 0;font-weight:500;letter-spacing:.5px;}
-  .cal-day{font-size:13px;text-align:center;padding:7px 4px;border-radius:8px;cursor:pointer;transition:all .15s;font-family:'Jost',sans-serif;}
+  .cal-day{font-size:13px;text-align:center;padding:7px 4px;border-radius:8px;cursor:pointer;transition:all .15s;font-family:'Jost',sans-serif;line-height:1;}
   .cal-day:hover{background:var(--cream);}
   .cal-day.today{background:var(--accent-bg);color:var(--accent);font-weight:600;}
-  .cal-day.selected{background:var(--ink);color:#fff;font-weight:500;}
-  .cal-day.other-month{color:var(--border);}
+  .cal-day.selected{background:var(--ink) !important;color:#fff !important;font-weight:500;}
+  .cal-day.other-month{color:#D0C8BE;cursor:default;}
+  .cal-day.other-month:hover{background:none;}
   .cal-day.empty{cursor:default;}
   .cal-footer{display:flex;gap:8px;margin-top:14px;}
 
-  /* ── OUTFITS ── */
-  .outfit-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:0 16px 24px;}
-  @media(min-width:768px){.outfit-grid{grid-template-columns:repeat(3,1fr);}}
-  .outfit-card{background:#fff;border-radius:16px;border:1.5px solid var(--border);overflow:hidden;cursor:pointer;transition:box-shadow .15s;}
+  /* ── OUTFITS - Pinterest masonry ── */
+  .outfit-masonry{columns:2;column-gap:10px;padding:0 16px 24px;}
+  @media(min-width:768px){.outfit-masonry{columns:3;}}
+  @media(min-width:1024px){.outfit-masonry{columns:4;}}
+  .outfit-card{background:#fff;border-radius:16px;border:1.5px solid var(--border);overflow:hidden;cursor:pointer;transition:box-shadow .15s;break-inside:avoid;margin-bottom:10px;display:inline-block;width:100%;}
   .outfit-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);}
-  .outfit-collage{width:100%;aspect-ratio:1;background:var(--cream);position:relative;overflow:hidden;}
-  .outfit-collage-inner{width:100%;height:100%;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:2px;padding:2px;}
-  .collage-cell{background:#fff;border-radius:4px;overflow:hidden;display:flex;align-items:center;justify-content:center;}
-  .collage-cell img{width:100%;height:100%;object-fit:cover;}
-  .collage-cell.span2{grid-column:span 2;}
+  .outfit-photos{width:100%;background:var(--cream);overflow:hidden;}
+  .outfit-photos.single img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block;}
+  .outfit-photos.two{display:grid;grid-template-columns:1fr 1fr;gap:2px;}
+  .outfit-photos.two .ph{aspect-ratio:2/3;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--cream);}
+  .outfit-photos.two .ph img{width:100%;height:100%;object-fit:cover;}
+  .outfit-photos.three{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:2px;}
+  .outfit-photos.three .ph{overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--cream);}
+  .outfit-photos.three .ph:first-child{grid-column:1/-1;aspect-ratio:3/2;}
+  .outfit-photos.three .ph:not(:first-child){aspect-ratio:1;}
+  .outfit-photos.three .ph img{width:100%;height:100%;object-fit:cover;}
+  .outfit-photos.four{display:grid;grid-template-columns:1fr 1fr;gap:2px;}
+  .outfit-photos.four .ph{aspect-ratio:1;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--cream);}
+  .outfit-photos.four .ph img{width:100%;height:100%;object-fit:cover;}
+  .outfit-photos .ph-empty{display:flex;align-items:center;justify-content:center;font-size:22px;opacity:.25;}
   .outfit-info{padding:8px 12px 10px;}
   .outfit-name{font-size:12px;font-weight:500;color:var(--ink);}
   .outfit-meta{font-size:10px;color:var(--muted);margin-top:2px;}
-  .builder-stage{background:var(--cream);border-radius:16px;padding:16px;margin-bottom:14px;min-height:220px;position:relative;}
+
+  /* outfit builder */
+  .builder-stage{background:var(--cream);border-radius:16px;padding:16px;margin-bottom:14px;}
   .slot-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
   .slot-label{font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);width:56px;flex-shrink:0;}
   .slot-item{flex:1;height:64px;background:#fff;border-radius:10px;border:1.5px solid var(--border);display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;transition:all .15s;}
@@ -256,13 +275,13 @@ const CSS = `
   .slot-name{font-size:12px;font-weight:500;color:var(--ink);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .slot-remove{background:none;border:none;font-size:14px;cursor:pointer;color:var(--muted);padding:2px;flex-shrink:0;}
   .slot-remove:hover{color:var(--red);}
-  .freeform-canvas{width:100%;height:320px;position:relative;background:var(--cream);border-radius:12px;overflow:hidden;touch-action:none;}
-  .freeform-item{position:absolute;width:90px;height:110px;background:#fff;border-radius:10px;border:1.5px solid var(--border);overflow:hidden;cursor:grab;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.08);user-select:none;}
+  .freeform-canvas{width:100%;height:300px;position:relative;background:var(--cream);border-radius:12px;overflow:hidden;touch-action:none;}
+  .freeform-item{position:absolute;width:88px;height:108px;background:#fff;border-radius:10px;border:1.5px solid var(--border);overflow:hidden;cursor:grab;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.08);user-select:none;}
   .freeform-item:active{cursor:grabbing;box-shadow:0 6px 20px rgba(0,0,0,.18);z-index:10;}
   .freeform-item img{width:100%;height:100%;object-fit:cover;}
-  .freeform-item .fi-label{font-size:9px;color:var(--muted);position:absolute;bottom:3px;left:0;right:0;text-align:center;background:rgba(255,255,255,.8);}
+  .freeform-item .fi-label{font-size:9px;color:var(--muted);position:absolute;bottom:2px;left:0;right:0;text-align:center;background:rgba(255,255,255,.85);}
   .mode-toggle{display:flex;gap:6px;margin-bottom:12px;}
-  .mode-btn{flex:1;padding:7px;border-radius:8px;font-size:11px;cursor:pointer;font-family:'Jost',sans-serif;transition:all .15s;letter-spacing:.3px;}
+  .mode-btn{flex:1;padding:7px;border-radius:8px;font-size:11px;cursor:pointer;font-family:'Jost',sans-serif;transition:all .15s;}
   .mode-btn.active{background:var(--ink);color:#fff;border:1.5px solid var(--ink);}
   .mode-btn:not(.active){background:#fff;color:var(--muted);border:1.5px solid var(--border);}
   .picker-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:4px 0;}
@@ -274,42 +293,69 @@ const CSS = `
   .picker-name{font-size:10px;font-weight:500;padding:4px 6px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 `;
 
-// ── Calendar picker component ─────────────────────────────────────────────────
+// ── Calendar ──────────────────────────────────────────────────────────────────
 function CalendarPicker({ value, onSelect, onClose }) {
-  const initDate = value ? new Date(value) : new Date();
+  const initDate = value ? new Date(value+'T12:00:00') : new Date();
   const [view, setView] = useState({ year: initDate.getFullYear(), month: initDate.getMonth() });
   const todayStr = todayIso();
 
-  const firstDay = new Date(view.year, view.month, 1).getDay();
-  const daysInMonth = new Date(view.year, view.month + 1, 0).getDate();
-  const cells = [];
-  for (let i = 0; i < firstDay; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-
-  function selectDay(d) {
-    const iso = `${view.year}-${String(view.month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    onSelect(iso);
-    onClose();
+  function buildCells() {
+    // Monday-first: Mon=0 ... Sun=6
+    const firstDow = new Date(view.year, view.month, 1).getDay(); // 0=Sun
+    const offset = (firstDow + 6) % 7; // Mon=0
+    const daysInMonth = new Date(view.year, view.month + 1, 0).getDate();
+    const prevDays = new Date(view.year, view.month, 0).getDate();
+    const cells = [];
+    // prev month fill
+    for (let i = offset - 1; i >= 0; i--) {
+      const d = prevDays - i;
+      const m = view.month === 0 ? 11 : view.month - 1;
+      const y = view.month === 0 ? view.year - 1 : view.year;
+      cells.push({ d, m, y, other: true });
+    }
+    // current month
+    for (let d = 1; d <= daysInMonth; d++) cells.push({ d, m: view.month, y: view.year, other: false });
+    // next month fill to complete grid
+    const remaining = (7 - (cells.length % 7)) % 7;
+    for (let d = 1; d <= remaining; d++) {
+      const m = view.month === 11 ? 0 : view.month + 1;
+      const y = view.month === 11 ? view.year + 1 : view.year;
+      cells.push({ d, m, y, other: true });
+    }
+    return cells;
   }
+
+  function isoOf(cell) {
+    return `${cell.y}-${String(cell.m+1).padStart(2,'0')}-${String(cell.d).padStart(2,'0')}`;
+  }
+
   function prev() { setView(v => v.month === 0 ? {year:v.year-1,month:11} : {year:v.year,month:v.month-1}); }
   function next() { setView(v => v.month === 11 ? {year:v.year+1,month:0} : {year:v.year,month:v.month+1}); }
+
+  const cells = buildCells();
 
   return (
     <div className="cal-overlay" onClick={onClose}>
       <div className="cal-box" onClick={e=>e.stopPropagation()}>
         <div className="cal-header">
           <button className="cal-nav" onClick={prev}>‹</button>
-          <div className="cal-title">{MONTHS[view.month]} {view.year}</div>
+          <div className="cal-title">{MONTHS_FULL[view.month]} {view.year}</div>
           <button className="cal-nav" onClick={next}>›</button>
         </div>
         <div className="cal-grid">
-          {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d=><div key={d} className="cal-day-lbl">{d}</div>)}
-          {cells.map((d,i) => {
-            if (!d) return <div key={`e${i}`} className="cal-day empty"/>;
-            const iso = `${view.year}-${String(view.month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          {['Mo','Tu','We','Th','Fr','Sa','Su'].map(d=><div key={d} className="cal-day-lbl">{d}</div>)}
+          {cells.map((cell,i) => {
+            const iso = isoOf(cell);
             const isToday = iso === todayStr;
-            const isSel   = iso === value;
-            return <div key={iso} className={`cal-day${isToday?' today':''}${isSel?' selected':''}`} onClick={()=>selectDay(d)}>{d}</div>;
+            const isSel = iso === value;
+            let cls = 'cal-day';
+            if (cell.other) cls += ' other-month';
+            else if (isToday) cls += ' today';
+            if (isSel) cls += ' selected';
+            return <div key={i} className={cls}
+              onClick={()=>{ if(!cell.other){ onSelect(iso); onClose(); } }}>
+              {cell.d}
+            </div>;
           })}
         </div>
         <div className="cal-footer">
@@ -321,12 +367,11 @@ function CalendarPicker({ value, onSelect, onClose }) {
   );
 }
 
-// ── Date field with calendar ──────────────────────────────────────────────────
 function DateField({ label, value, onChange }) {
   const [open, setOpen] = useState(false);
   return (
     <div style={{marginBottom:11}}>
-      <label className="f-lbl">{label}</label>
+      {label && <label className="f-lbl">{label}</label>}
       <div className="f-inp" onClick={()=>setOpen(true)}
         style={{cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',color:value?'var(--ink)':'var(--muted)'}}>
         <span>{value ? formatDate(value) : 'Select date…'}</span>
@@ -337,7 +382,6 @@ function DateField({ label, value, onChange }) {
   );
 }
 
-// ── Log wear modal ────────────────────────────────────────────────────────────
 function LogWearModal({ onLog, onClose }) {
   const [date, setDate] = useState(todayIso());
   return (
@@ -347,7 +391,7 @@ function LogWearModal({ onLog, onClose }) {
         <DateField label="Date worn" value={date} onChange={setDate}/>
         <div style={{display:'flex',gap:8,marginTop:4}}>
           <button onClick={onClose} style={{flex:1,padding:'10px',border:'1.5px solid var(--border)',borderRadius:10,background:'none',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Cancel</button>
-          <button onClick={()=>{onLog(date);onClose();}} style={{flex:1,padding:'10px',border:'none',borderRadius:10,background:'var(--ink)',color:'#fff',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Save</button>
+          <button onClick={()=>{if(date){onLog(date);onClose();}}} style={{flex:1,padding:'10px',border:'none',borderRadius:10,background:'var(--ink)',color:'#fff',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Save</button>
         </div>
       </div>
     </div>
@@ -368,8 +412,24 @@ function FInp({value,onChange,placeholder='',type='text',style={}}){return <inpu
 function FSel({value,onChange,options,placeholder=''}){return <select value={value||''} onChange={onChange} className="f-inp f-sel">{placeholder&&<option value="">{placeholder}</option>}{options.map(o=><option key={o} value={o}>{o}</option>)}</select>;}
 function FRow({children}){return <div style={{display:'flex',gap:8}}>{children}</div>;}
 function DetailRow({label,value}){if(!value&&value!==0)return null;return <div className="detail-row"><span style={{fontSize:11,color:'#8A837A',flexShrink:0}}>{label}</span><span style={{fontSize:12,fontWeight:500,color:'#1A1714',textAlign:'right'}}>{value}</span></div>;}
+async function handlePhotoFile(file,cb,setU){setU(true);const url=await sb.upload(file);setU(false);cb(url||URL.createObjectURL(file));}
 
-async function handlePhotoFile(file,cb,setUploading){setUploading(true);const url=await sb.upload(file);setUploading(false);cb(url||URL.createObjectURL(file));}
+// ── Outfit thumbnail ──────────────────────────────────────────────────────────
+function OutfitThumbnail({ items }) {
+  const count = items.length;
+  const ph = (item) => (
+    <div className="ph">
+      {item?.photoUrl
+        ? <img src={item.photoUrl} alt={item?.name||''}/>
+        : <div className="ph-empty">{CAT_EMOJI[item?.category]||'✦'}</div>}
+    </div>
+  );
+  if (count === 0) return <div style={{width:'100%',padding:'24px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,opacity:.15}}>✦</div>;
+  if (count === 1) return <div className="outfit-photos single">{items[0].photoUrl?<img src={items[0].photoUrl} alt=""/>:<div style={{aspectRatio:'3/4',display:'flex',alignItems:'center',justifyContent:'center',fontSize:48,opacity:.2}}>{CAT_EMOJI[items[0].category]||'✦'}</div>}</div>;
+  if (count === 2) return <div className="outfit-photos two">{items.map((it,i)=><div key={i} className="ph">{it?.photoUrl?<img src={it.photoUrl} alt=""/>:<div className="ph-empty">{CAT_EMOJI[it?.category]||'✦'}</div>}</div>)}</div>;
+  if (count === 3) return <div className="outfit-photos three">{items.map((it,i)=>ph(it))}</div>;
+  return <div className="outfit-photos four">{items.slice(0,4).map((it,i)=>ph(it))}</div>;
+}
 
 // ── Wardrobe fields ───────────────────────────────────────────────────────────
 function WardrobeFields({d,up,stores,onAddStore}){
@@ -414,9 +474,7 @@ function EditWardrobeSheet({item,onSave,onCancel,stores,onAddStore}){
     <WardrobeFields d={f} up={up} stores={stores} onAddStore={onAddStore}/>
     <FRow>
       <FGrp label="Total wears" style={{flex:1,marginTop:4}}><FInp value={f.wearCount} type="number" onChange={e=>up({wearCount:parseInt(e.target.value)||0})}/></FGrp>
-      <div style={{flex:1,marginTop:4}}>
-        <DateField label="Last worn date" value={f.lastWornDate} onChange={v=>up({lastWornDate:v})}/>
-      </div>
+      <div style={{flex:1,marginTop:4}}><DateField label="Last worn" value={f.lastWornDate} onChange={v=>up({lastWornDate:v})}/></div>
     </FRow>
   </Sheet>;
 }
@@ -506,20 +564,13 @@ function WishDetailSheet({item,similar,onClose,onEdit,onDelete,onRate,onMoveToWa
   </Sheet>;
 }
 
-// ── Outfit components ─────────────────────────────────────────────────────────
-function OutfitCollage({items}){
-  const d=items.slice(0,4);
-  if(!d.length)return <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:32,opacity:.2}}>✦</div>;
-  if(d.length===1)return <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',padding:8}}>{d[0].photoUrl?<img src={d[0].photoUrl} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain',borderRadius:8}}/>:<span style={{fontSize:36,opacity:.4}}>{CAT_EMOJI[d[0].category]||'👗'}</span>}</div>;
-  return <div className="outfit-collage-inner">{d.map((item,i)=><div key={item.id} className={`collage-cell${d.length===3&&i===0?' span2':''}`}>{item.photoUrl?<img src={item.photoUrl} alt={item.name}/>:<span style={{fontSize:20,opacity:.35}}>{CAT_EMOJI[item.category]||'👗'}</span>}</div>)}</div>;
-}
-
+// ── Outfit builder ────────────────────────────────────────────────────────────
 function FreeformCanvas({items,positions,onPositionsChange}){
   const canvasRef=useRef();const dragging=useRef(null);
   const [pos,setPos]=useState(()=>{const p={};items.forEach((item,i)=>{p[item.id]=positions?.[item.id]||{x:20+(i%3)*100,y:20+Math.floor(i/3)*130};});return p;});
   function getXY(e){const rect=canvasRef.current.getBoundingClientRect();if(e.touches)return{x:e.touches[0].clientX-rect.left,y:e.touches[0].clientY-rect.top};return{x:e.clientX-rect.left,y:e.clientY-rect.top};}
   function onStart(e,id){e.preventDefault();const{x,y}=getXY(e);dragging.current={id,ox:x-(pos[id]?.x||0),oy:y-(pos[id]?.y||0)};}
-  function onMove(e){if(!dragging.current)return;e.preventDefault();const{x,y}=getXY(e);const c=canvasRef.current;const nx=Math.max(0,Math.min(c.clientWidth-90,x-dragging.current.ox));const ny=Math.max(0,Math.min(c.clientHeight-110,y-dragging.current.oy));setPos(p=>({...p,[dragging.current.id]:{x:nx,y:ny}}));}
+  function onMove(e){if(!dragging.current)return;e.preventDefault();const{x,y}=getXY(e);const c=canvasRef.current;const nx=Math.max(0,Math.min(c.clientWidth-88,x-dragging.current.ox));const ny=Math.max(0,Math.min(c.clientHeight-108,y-dragging.current.oy));setPos(p=>({...p,[dragging.current.id]:{x:nx,y:ny}}));}
   function onEnd(){if(dragging.current){onPositionsChange(pos);dragging.current=null;}}
   return <div ref={canvasRef} className="freeform-canvas" onMouseMove={onMove} onMouseUp={onEnd} onMouseLeave={onEnd} onTouchMove={onMove} onTouchEnd={onEnd}>
     {items.map(item=><div key={item.id} className="freeform-item" style={{left:pos[item.id]?.x||0,top:pos[item.id]?.y||0}} onMouseDown={e=>onStart(e,item.id)} onTouchStart={e=>onStart(e,item.id)}>
@@ -589,7 +640,7 @@ function OutfitDetailSheet({outfit,wardrobe,onClose,onEdit,onDelete,onMarkWorn})
     <div style={{marginBottom:14}}>
       <div style={{display:'flex',justifyContent:'flex-end',gap:6,marginBottom:8}}>
         <button onClick={()=>setFreeform(false)} style={{fontSize:11,padding:'4px 10px',borderRadius:6,border:'1.5px solid var(--border)',background:!freeform?'var(--ink)':'#fff',color:!freeform?'#fff':'var(--muted)',cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Grid</button>
-        <button onClick={()=>setFreeform(true)} style={{fontSize:11,padding:'4px 10px',borderRadius:6,border:'1.5px solid var(--border)',background:freeform?'var(--ink)':'#fff',color:freeform?'#fff':'var(--muted)',cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Flat-lay</button>
+        {outfit.positions&&<button onClick={()=>setFreeform(true)} style={{fontSize:11,padding:'4px 10px',borderRadius:6,border:'1.5px solid var(--border)',background:freeform?'var(--ink)':'#fff',color:freeform?'#fff':'var(--muted)',cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Flat-lay</button>}
       </div>
       {freeform&&outfit.positions?<FreeformCanvas items={items} positions={outfit.positions} onPositionsChange={()=>{}}/>
       :<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>{items.map(item=><div key={item.id} style={{borderRadius:10,overflow:'hidden',background:'var(--cream)',aspectRatio:'3/4',display:'flex',alignItems:'center',justifyContent:'center'}}>{item.photoUrl?<img src={item.photoUrl} alt={item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span style={{fontSize:28,opacity:.3}}>{CAT_EMOJI[item.category]||'👗'}</span>}</div>)}</div>}
@@ -615,19 +666,14 @@ function OutfitDetailSheet({outfit,wardrobe,onClose,onEdit,onDelete,onMarkWorn})
   </Sheet>;
 }
 
-// ── Wardrobe & Wish cards ─────────────────────────────────────────────────────
+// ── Cards ─────────────────────────────────────────────────────────────────────
 function WardrobeCard({item,onClick}){
   return <div className={`icard${!item.complete?' incomplete':''}`} onClick={onClick}>
-    <div className="iphoto">
-      {item.photoUrl?<img src={item.photoUrl} alt={item.name}/>:<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3}}><span style={{fontSize:22,opacity:.35}}>{CAT_EMOJI[item.category]||'👗'}</span><span style={{fontSize:9,color:'var(--muted)'}}>{item.subcategory||item.category}</span></div>}
+    <div className="iphoto">{item.photoUrl?<img src={item.photoUrl} alt={item.name}/>:<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3}}><span style={{fontSize:22,opacity:.35}}>{CAT_EMOJI[item.category]||'👗'}</span><span style={{fontSize:9,color:'var(--muted)'}}>{item.subcategory||item.category}</span></div>}
       {!item.complete&&<span className="badge-warn">needs info</span>}
       {item.lastWornDate&&<span className="badge-worn">{daysAgoLabel(item.lastWornDate)}</span>}
     </div>
-    <div className="iinfo">
-      <div className="iname">{item.name||'Untitled'}</div>
-      <div className="imeta">{item.brand||item.store||item.color||'—'}</div>
-      {item.size&&<div className="isize">{item.sizeLabel||item.size}</div>}
-    </div>
+    <div className="iinfo"><div className="iname">{item.name||'Untitled'}</div><div className="imeta">{item.brand||item.store||item.color||'—'}</div>{item.size&&<div className="isize">{item.sizeLabel||item.size}</div>}</div>
   </div>;
 }
 function WishCard({item,similar,onRate,onClick}){
@@ -669,10 +715,8 @@ function App(){
 
   useEffect(()=>{
     async function load(){
-      try{
-        const [wr,wlr,or,sr]=await Promise.all([sb.get('wardrobe'),sb.get('wishlist'),sb.get('outfits'),sb.get('stores')]);
-        setW(wr.map(fromRow));setWL(wlr.map(fromWR));setO(or.map(fromOR));setStores(sr);
-      }catch(e){console.error(e);}
+      try{const [wr,wlr,or,sr]=await Promise.all([sb.get('wardrobe'),sb.get('wishlist'),sb.get('outfits'),sb.get('stores')]);setW(wr.map(fromRow));setWL(wlr.map(fromWR));setO(or.map(fromOR));setStores(sr);}
+      catch(e){console.error(e);}
       setLoading(false);
     }
     load();
@@ -684,10 +728,7 @@ function App(){
   async function addItem(i){try{await sb.ins('wardrobe',toRow(i));setW(p=>[...p,i]);}catch(e){console.error(e);}setShowAddW(false);}
   async function saveItem(i){const complete=!!(i.name&&i.category&&(i.size||i.brand));const u={...i,complete};try{await sb.upd('wardrobe',i.id,toRow(u));setW(p=>p.map(x=>x.id===i.id?u:x));setSelItem(u);}catch(e){console.error(e);}setEditItem(false);}
   async function delItem(id){try{await sb.del('wardrobe',id);setW(p=>p.filter(x=>x.id!==id));}catch(e){console.error(e);}setSelItem(null);}
-  async function logWear(item,date){
-    const u={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};
-    try{await sb.upd('wardrobe',item.id,{last_worn_date:date,wear_count:u.wearCount});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}
-  }
+  async function logWear(item,date){const u={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};try{await sb.upd('wardrobe',item.id,{last_worn_date:date,wear_count:u.wearCount});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
 
   // Wishlist CRUD
   async function addWish(i){try{await sb.ins('wishlist',toWR(i));setWL(p=>[...p,i]);}catch(e){console.error(e);}setShowAddWL(false);}
@@ -697,24 +738,12 @@ function App(){
   async function bought(w){const item={...w,id:uid(),lastWornDate:null,wearCount:0,complete:false,dateBought:null,notes:`From wishlist. ${w.notes||''}`.trim()};await addItem(item);await delWish(w.id);}
 
   // Outfit CRUD
-  async function saveOutfit(o){
-    const row=toOR(o);
-    try{
-      if(outfits.find(x=>x.id===o.id)){await sb.upd('outfits',o.id,row);setO(p=>p.map(x=>x.id===o.id?o:x));setSelOutfit(o);}
-      else{await sb.ins('outfits',row);setO(p=>[...p,o]);}
-    }catch(e){console.error(e);}
-    setShowAddO(false);setEditOutfit(false);
-  }
+  async function saveOutfit(o){const row=toOR(o);try{if(outfits.find(x=>x.id===o.id)){await sb.upd('outfits',o.id,row);setO(p=>p.map(x=>x.id===o.id?o:x));setSelOutfit(o);}else{await sb.ins('outfits',row);setO(p=>[...p,o]);}}catch(e){console.error(e);}setShowAddO(false);setEditOutfit(false);}
   async function delOutfit(id){try{await sb.del('outfits',id);setO(p=>p.filter(x=>x.id!==id));}catch(e){console.error(e);}setSelOutfit(null);}
   async function logOutfitWear(outfit,date){
     const u={...outfit,lastWornDate:date,wearCount:(outfit.wearCount||0)+1};
     try{await sb.upd('outfits',outfit.id,{last_worn_date:date,wear_count:u.wearCount});setO(p=>p.map(x=>x.id===outfit.id?u:x));setSelOutfit(u);}catch(e){console.error(e);}
-    // also log each item
-    for(const id of outfit.itemIds){
-      const item=wardrobe.find(w=>w.id===id);if(!item)continue;
-      const ui={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};
-      try{await sb.upd('wardrobe',id,{last_worn_date:date,wear_count:ui.wearCount});setW(p=>p.map(x=>x.id===id?ui:x));}catch(e){console.error(e);}
-    }
+    for(const id of outfit.itemIds){const item=wardrobe.find(w=>w.id===id);if(!item)continue;const ui={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};try{await sb.upd('wardrobe',id,{last_worn_date:date,wear_count:ui.wearCount});setW(p=>p.map(x=>x.id===id?ui:x));}catch(e){console.error(e);}}
   }
 
   const fW=wardrobe.filter(i=>{const mc=catFilter==='All'||i.category===catFilter;const q=search.toLowerCase();return mc&&(!q||[i.name,i.brand,i.color,i.store,i.category,i.subcategory].some(s=>(s||'').toLowerCase().includes(q)));});
@@ -747,26 +776,40 @@ function App(){
       </div>
       <div className="scroll">
 
+        {/* WARDROBE */}
         {tab==='wardrobe'&&<>
           <div className="filterrow">{CATS.map(c=><button key={c} className={`chip${catFilter===c?' active':''}`} onClick={()=>setCat(c)}>{c}</button>)}</div>
           {incomplete.length>0&&<div className="banner"><span>📋</span><div><div style={{fontSize:12,fontWeight:500,color:'var(--ink)'}}>{incomplete.length} item{incomplete.length>1?'s':''} need details</div><div style={{fontSize:10,color:'var(--muted)',marginTop:1}}>Tap to fill in store, size and colour whenever you have time</div></div></div>}
           {fW.length===0?<div className="empty"><div style={{fontSize:40,marginBottom:10}}>🧺</div><div className="empty-t">Your wardrobe is empty</div><div className="empty-s">Tap + to add your first item. Drop a photo in and fill the details later.</div></div>
-          :<>{fW.some(i=>!i.complete)&&<><div className="seclbl">Needs info</div><div className="grid">{fW.filter(i=>!i.complete).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}}/>)}</div></>}
-          {fW.some(i=>i.complete)&&<><div className="seclbl">{catFilter==='All'?'All items':catFilter} · {fW.filter(i=>i.complete).length}</div><div className="grid">{fW.filter(i=>i.complete).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}}/>)}</div></>}</>}
+          :<>{fW.some(i=>!i.complete)&&<><div className="seclbl">Needs info</div><div className="grid">{fW.filter(i=>!i.complete).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}}/>)}</div></>}{fW.some(i=>i.complete)&&<><div className="seclbl">{catFilter==='All'?'All items':catFilter} · {fW.filter(i=>i.complete).length}</div><div className="grid">{fW.filter(i=>i.complete).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}}/>)}</div></>}</>}
         </>}
 
+        {/* OUTFITS */}
         {tab==='outfits'&&<>
           {outfits.length===0?<div className="empty"><div style={{fontSize:40,marginBottom:10}}>✦</div><div className="empty-t">No saved outfits yet</div><div className="empty-s">Tap + to build your first outfit. Pick items from your wardrobe, arrange them as a flat-lay, and save the combination.</div></div>
           :<><div className="seclbl" style={{paddingTop:10}}>Saved outfits · {outfits.length}</div>
-          <div className="outfit-grid">{outfits.map(outfit=>{const items=outfit.itemIds.map(id=>wardrobe.find(w=>w.id===id)).filter(Boolean);return<div key={outfit.id} className="outfit-card" onClick={()=>{setSelOutfit(outfit);setEditOutfit(false);}}><div className="outfit-collage"><OutfitCollage items={items}/></div><div className="outfit-info"><div className="outfit-name">{outfit.name}</div><div className="outfit-meta">{items.length} pieces{outfit.occasion?` · ${outfit.occasion}`:''}  {outfit.lastWornDate?`· ${daysAgoLabel(outfit.lastWornDate)}`:'· Never worn'}</div></div></div>;})}</div></>}
+          <div className="outfit-masonry">
+            {outfits.map(outfit=>{
+              const items=outfit.itemIds.map(id=>wardrobe.find(w=>w.id===id)).filter(Boolean);
+              return <div key={outfit.id} className="outfit-card" onClick={()=>{setSelOutfit(outfit);setEditOutfit(false);}}>
+                <OutfitThumbnail items={items}/>
+                <div className="outfit-info">
+                  <div className="outfit-name">{outfit.name}</div>
+                  <div className="outfit-meta">{items.length} piece{items.length!==1?'s':''}{outfit.occasion?` · ${outfit.occasion}`:''}  {outfit.lastWornDate?`· ${daysAgoLabel(outfit.lastWornDate)}`:'· Never worn'}</div>
+                </div>
+              </div>;
+            })}
+          </div></>}
         </>}
 
+        {/* WISHLIST */}
         {tab==='wishlist'&&<>
           <div className="filterrow">{['All',...Object.keys(CATEGORY_MAP)].map(c=><button key={c} className={`chip${wlFilter===c?' active':''}`} onClick={()=>setWlF(c)}>{c}</button>)}</div>
           {fWL.length===0?<div className="empty"><div style={{fontSize:40,marginBottom:10}}>🛍️</div><div className="empty-t">Nothing on the wishlist yet</div><div className="empty-s">Tap + to add items.</div></div>
           :<div className="wish-grid">{fWL.map(i=><WishCard key={i.id} item={i} similar={findSimilar(i,wardrobe)} onRate={r=>rateWish(i.id,r)} onClick={()=>{setSelWish(i);setEditWish(false);}}/>)}</div>}
         </>}
 
+        {/* STATS */}
         {tab==='stats'&&<>
           <div className="stat-grid">{[{n:wardrobe.filter(i=>i.complete).length,l:'Items in wardrobe'},{n:outfits.length,l:'Saved outfits'},{n:wishlist.length,l:'On wishlist'},{n:unworn.length,l:'Unworn 30+ days'}].map(s=><div key={s.l} className="stat-card"><div className="stat-n">{s.n}</div><div className="stat-l">{s.l}</div></div>)}</div>
           <div className="seclbl" style={{marginTop:6}}>By category</div>
@@ -776,11 +819,40 @@ function App(){
           <div style={{display:'flex',flexDirection:'column',gap:7,padding:'0 16px 24px'}}>{unworn.slice(0,6).map(i=><div key={i.id} onClick={()=>{setSelItem(i);setEditItem(false);setTab('wardrobe');}} style={{display:'flex',alignItems:'center',gap:10,background:'#fff',borderRadius:12,padding:'10px 13px',border:'1px solid var(--border)',cursor:'pointer'}}><div style={{width:36,height:48,borderRadius:6,background:'var(--cream)',flexShrink:0,overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>{i.photoUrl?<img src={i.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:CAT_EMOJI[i.category]}</div><div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{i.name}</div><div style={{fontSize:10,color:'var(--red)',marginTop:1}}>{i.lastWornDate?`Last worn ${formatDate(i.lastWornDate)}`:'Never worn'} · {i.wearCount||0} wears</div></div><span style={{fontSize:11,color:'var(--muted)',textDecoration:'underline',flexShrink:0}}>View →</span></div>)}</div></>}
         </>}
 
+        {/* SIZES */}
         {tab==='sizes'&&<div style={{padding:'10px 16px 24px'}}>
           <div style={{fontSize:12,color:'var(--muted)',lineHeight:1.6,marginBottom:12}}>Your saved sizes are highlighted. Tap a store to expand its chart.</div>
-          {SIZE_GUIDES.map((sg,i)=>{const isOpen=openStore===i;const myS=wardrobe.filter(w=>w.store===sg.store).map(w=>w.size);const hasIn=sg.sizes.some(s=>s.inseam);return<div key={sg.store} className="store-card"><div className="store-hd" onClick={()=>setOS(isOpen?null:i)}><div><div style={{fontSize:13,fontWeight:500}}>{sg.store}</div><div style={{fontSize:10,color:'var(--muted)'}}>{sg.cat} · {sg.country}</div></div><div style={{display:'flex',alignItems:'center',gap:8}}>{myS.length>0&&<span style={{fontSize:10,background:'var(--accent-bg)',color:'var(--accent)',padding:'2px 7px',borderRadius:10,fontWeight:500}}>{myS.join(', ')}</span>}<span style={{fontSize:11,color:'var(--muted)',display:'inline-block',transition:'transform .2s',transform:isOpen?'rotate(180deg)':'none'}}>▼</span></div></div>{isOpen&&<div className="size-wrap"><table><thead><tr><th>Size</th><th>AU</th><th>Bust</th><th>Waist</th><th>Hip</th>{hasIn&&<th>Inseam</th>}</tr></thead><tbody>{sg.sizes.map(s=>{const mine=myS.includes(s.l);return<tr key={s.l} className={mine?'my-row':''}><td>{s.l}{mine&&<span style={{fontSize:8,color:'var(--accent)',fontWeight:600,marginLeft:3}}>★ mine</span>}</td><td>{s.au}</td><td>{s.bust}</td><td>{s.waist}</td><td>{s.hip}</td>{hasIn&&<td>{s.inseam||'—'}</td>}</tr>;})}</tbody></table></div>}</div>;})}
+          {SIZE_GUIDES.map((sg,i)=>{
+            const isOpen=openStore===i;
+            const myItems=wardrobe.filter(w=>w.store===sg.store&&w.size);
+            // deduplicated sizes for header badge
+            const mySizes=[...new Set(myItems.map(w=>w.size))];
+            const summary=getMySizeSummary(sg.store,wardrobe);
+            const hasIn=sg.sizes.some(s=>s.inseam);
+            return <div key={sg.store} className="store-card">
+              <div className="store-hd" onClick={()=>setOS(isOpen?null:i)}>
+                <div><div style={{fontSize:13,fontWeight:500}}>{sg.store}</div><div style={{fontSize:10,color:'var(--muted)'}}>{sg.cat} · {sg.country}</div></div>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  {mySizes.length>0&&<span style={{fontSize:10,background:'var(--accent-bg)',color:'var(--accent)',padding:'2px 7px',borderRadius:10,fontWeight:500}}>{mySizes.join(', ')}</span>}
+                  <span style={{fontSize:11,color:'var(--muted)',display:'inline-block',transition:'transform .2s',transform:isOpen?'rotate(180deg)':'none'}}>▼</span>
+                </div>
+              </div>
+              {isOpen&&<>
+                <div className="size-wrap">
+                  <table><thead><tr><th>Size</th><th>AU</th><th>Bust</th><th>Waist</th><th>Hip</th>{hasIn&&<th>Inseam</th>}</tr></thead>
+                  <tbody>{sg.sizes.map(s=>{const mine=mySizes.includes(s.l);return<tr key={s.l} className={mine?'my-row':''}><td>{s.l}{mine&&<span style={{fontSize:8,color:'var(--accent)',fontWeight:600,marginLeft:3}}>★ mine</span>}</td><td>{s.au}</td><td>{s.bust}</td><td>{s.waist}</td><td>{s.hip}</td>{hasIn&&<td>{s.inseam||'—'}</td>}</tr>;})}</tbody>
+                  </table>
+                </div>
+                {summary&&<div className="my-sizes-summary">
+                  <div style={{fontSize:10,letterSpacing:'.8px',textTransform:'uppercase',color:'var(--accent)',fontWeight:500,marginBottom:5}}>My sizes at {sg.store}</div>
+                  {summary.map(line=><div key={line} style={{fontSize:12,color:'var(--ink)',marginBottom:2}}>{line}</div>)}
+                </div>}
+              </>}
+            </div>;
+          })}
         </div>}
 
+        {/* ASK */}
         {tab==='ask'&&<div className="ask-wrap">
           <div className="ask-box">
             <div className="ask-input-row"><input className="ask-input" placeholder="e.g. What size are my Levi's jeans?" value={askQ} onChange={e=>setAskQ(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleAsk()}/><button onClick={()=>handleAsk()} style={{padding:'7px 13px',background:'var(--ink)',color:'#fff',border:'none',borderRadius:8,fontSize:11,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Ask</button></div>
@@ -802,10 +874,10 @@ function App(){
   {showAddW   && <AddWardrobeSheet  onSave={addItem}  onClose={()=>setShowAddW(false)}  stores={stores} onAddStore={addStore}/>}
   {showAddWL  && <AddWishSheet      onSave={addWish}  onClose={()=>setShowAddWL(false)} stores={stores} onAddStore={addStore}/>}
   {showAddO   && <OutfitBuilderSheet wardrobe={wardrobe} outfit={null} onSave={saveOutfit} onClose={()=>setShowAddO(false)}/>}
-  {selItem&&!editItem  && <WardrobeDetailSheet item={selItem}  onClose={()=>setSelItem(null)}  onEdit={()=>setEditItem(true)}  onLogWear={logWear} onDelete={()=>delItem(selItem.id)}/>}
-  {selItem&&editItem   && <EditWardrobeSheet   item={selItem}  onSave={saveItem} onCancel={()=>setEditItem(false)}  stores={stores} onAddStore={addStore}/>}
+  {selItem&&!editItem  && <WardrobeDetailSheet item={selItem} onClose={()=>setSelItem(null)} onEdit={()=>setEditItem(true)} onLogWear={logWear} onDelete={()=>delItem(selItem.id)}/>}
+  {selItem&&editItem   && <EditWardrobeSheet   item={selItem} onSave={saveItem} onCancel={()=>setEditItem(false)} stores={stores} onAddStore={addStore}/>}
   {selWish&&!editWish  && <WishDetailSheet item={selWish} similar={findSimilar(selWish,wardrobe)} onClose={()=>setSelWish(null)} onEdit={()=>setEditWish(true)} onDelete={()=>delWish(selWish.id)} onRate={r=>rateWish(selWish.id,r)} onMoveToWardrobe={()=>bought(selWish)}/>}
-  {selWish&&editWish   && <EditWishSheet   item={selWish}  onSave={saveWish} onCancel={()=>setEditWish(false)} stores={stores} onAddStore={addStore}/>}
+  {selWish&&editWish   && <EditWishSheet   item={selWish} onSave={saveWish} onCancel={()=>setEditWish(false)} stores={stores} onAddStore={addStore}/>}
   {selOutfit&&!editOutfit && <OutfitDetailSheet outfit={selOutfit} wardrobe={wardrobe} onClose={()=>setSelOutfit(null)} onEdit={()=>setEditOutfit(true)} onDelete={()=>delOutfit(selOutfit.id)} onMarkWorn={logOutfitWear}/>}
   {selOutfit&&editOutfit  && <OutfitBuilderSheet wardrobe={wardrobe} outfit={selOutfit} onSave={saveOutfit} onClose={()=>setEditOutfit(false)}/>}
   </>;
