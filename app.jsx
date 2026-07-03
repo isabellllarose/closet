@@ -135,8 +135,8 @@ const CSS = `
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
   html,body,#root{height:100%;}
   body{font-family:'Jost',system-ui,sans-serif;background:#111;}
-  :root{--cream:#F5F0E8;--ink:#1A1714;--muted:#8A837A;--border:#E0D9CF;--panel:#FDFAF5;--accent:#B07848;--accent-bg:#F5EDE2;--red:#C4623A;--green:#5A8A60;--safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,16px);}
-  .app{display:flex;height:100dvh;height:100vh;background:var(--cream);overflow:hidden;}
+  :root{--cream:#F5F0E8;--ink:#1A1714;--muted:#8A837A;--border:#E0D9CF;--panel:#FDFAF5;--accent:#B07848;--accent-bg:#F5EDE2;--red:#C4623A;--green:#5A8A60;--safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,34px);}
+  .app{display:flex;height:100dvh;height:100svh;background:var(--cream);overflow:hidden;}
   .app-inner{display:flex;flex-direction:column;flex:1;overflow:hidden;max-width:430px;margin:0 auto;width:100%;}
   @media(min-width:768px){.app{justify-content:center;background:#ECEAE4;}.app-inner{flex-direction:row;max-width:1100px;margin:24px auto;border-radius:20px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.15);height:calc(100vh - 48px);}}
   .sidebar{display:none;}
@@ -151,7 +151,7 @@ const CSS = `
   .searchbox input::placeholder{color:var(--muted);}
   .iconbtn{width:36px;height:36px;border-radius:50%;background:var(--ink);border:none;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
   .iconbtn:hover{opacity:.85;}
-  .botnav{display:flex;background:var(--panel);border-top:1px solid var(--border);padding:0;flex-shrink:0;padding-bottom:var(--safe-b);}
+  .botnav{display:flex;background:var(--panel);border-top:1px solid var(--border);padding:0;flex-shrink:0;padding-bottom:max(var(--safe-b),20px);}
   @media(min-width:768px){.botnav{display:none;}}
   .navitem{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:none;background:none;cursor:pointer;padding:10px 2px 8px;min-height:58px;}
   .navitem .nl{font-size:9px;letter-spacing:.3px;text-transform:uppercase;color:var(--muted);font-weight:400;}
@@ -481,23 +481,39 @@ function PhotoUploader({ photoUrl, onUrl, style={}, label='Tap to add photo\ncam
   );
 }
 
-// ── Wishlist multi-photo uploader ─────────────────────────────────────────────
+// ── Wishlist multi-photo uploader — select up to 3 at once ───────────────────
 function WishPhotoManager({ urls, onChange }) {
   const ref = useRef();
   const [uploading, setUploading] = useState(false);
+  const MAX = 3;
+  const canAdd = urls.length < MAX;
 
-  async function handleFile(e) {
+  async function handleFiles(e) {
     try {
-      const file = e.target.files?.[0];
-      if (!file) return;
+      const files = Array.from(e.target.files||[]).slice(0, MAX - urls.length);
+      if (!files.length) return;
       setUploading(true);
-      let localUrl;
-      try { localUrl = URL.createObjectURL(file); } catch(err) { setUploading(false); return; }
-      onChange([...urls, localUrl]);
-      const uploaded = await sb.upload(file);
-      if (uploaded) {
-        onChange(prev => prev.map(u => u === localUrl ? uploaded : u));
+
+      // Show local previews immediately
+      const localUrls = [];
+      for (const file of files) {
+        try { localUrls.push(URL.createObjectURL(file)); } catch(err) { localUrls.push(null); }
       }
+      const validLocals = localUrls.filter(Boolean);
+      onChange([...urls, ...validLocals]);
+
+      // Upload each to Supabase and swap in permanent URLs
+      for (let i = 0; i < files.length; i++) {
+        if (!localUrls[i]) continue;
+        try {
+          const uploaded = await sb.upload(files[i]);
+          if (uploaded) {
+            const local = localUrls[i];
+            onChange(prev => prev.map(u => u === local ? uploaded : u));
+          }
+        } catch(err) { console.error('Upload error:', err); }
+      }
+
       setUploading(false);
       try { e.target.value = ''; } catch(err) {}
     } catch(err) {
@@ -508,28 +524,37 @@ function WishPhotoManager({ urls, onChange }) {
 
   return (
     <div style={{marginBottom:11}}>
-      <label className="f-lbl">Photos</label>
+      <label className="f-lbl">Photos (up to {MAX})</label>
       <div style={{display:'flex',gap:8,overflowX:'auto',paddingBottom:4}}>
         {urls.map((url,i)=>(
           <div key={i} style={{position:'relative',flexShrink:0}}>
-            <div style={{width:72,height:72,borderRadius:8,overflow:'hidden',background:'#fff',border:'1.5px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <div style={{width:80,height:80,borderRadius:8,overflow:'hidden',background:'#fff',border:'1.5px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'center'}}>
               <img src={url} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>
             </div>
             <button onClick={()=>onChange(urls.filter((_,j)=>j!==i))}
-              style={{position:'absolute',top:-6,right:-6,width:18,height:18,borderRadius:'50%',background:'var(--red)',border:'none',color:'#fff',fontSize:10,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>✕</button>
+              style={{position:'absolute',top:-6,right:-6,width:20,height:20,borderRadius:'50%',background:'var(--red)',border:'none',color:'#fff',fontSize:11,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>✕</button>
           </div>
         ))}
-        <div style={{width:72,height:72,borderRadius:8,border:'2px dashed var(--border)',background:'var(--cream)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,position:'relative',fontSize:uploading?11:22,color:'var(--muted)'}}>
-          {uploading?'…':'＋'}
-          <input ref={ref} type="file" accept="image/*"
-            style={{position:'absolute',inset:0,opacity:0,cursor:'pointer'}}
-            onClick={e=>e.stopPropagation()}
-            onChange={handleFile}/>
-        </div>
+        {canAdd && (
+          <div style={{width:80,height:80,borderRadius:8,border:'2px dashed var(--border)',background:'var(--cream)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flexShrink:0,position:'relative',color:'var(--muted)',gap:3}}>
+            {uploading
+              ? <><div className="spinner" style={{borderTopColor:'var(--accent)',borderColor:'var(--border)'}}/>
+                  <span style={{fontSize:9}}>Uploading…</span></>
+              : <><span style={{fontSize:22}}>＋</span>
+                  <span style={{fontSize:9,letterSpacing:'.3px'}}>Add photo{MAX-urls.length>1?'s':''}</span></>}
+            <input ref={ref} type="file" accept="image/*"
+              multiple
+              style={{position:'absolute',inset:0,opacity:0,cursor:'pointer'}}
+              onClick={e=>e.stopPropagation()}
+              onChange={handleFiles}/>
+          </div>
+        )}
       </div>
+      {urls.length===0 && <div style={{fontSize:10,color:'var(--muted)',marginTop:3}}>Tap + to add up to 3 photos — you can select multiple at once from your library</div>}
     </div>
   );
 }
+
 
 // ── Wishlist photo viewer (swipe on phone, hover on desktop) ──────────────────
 function WishPhotoViewer({ urls }) {
