@@ -619,8 +619,8 @@ function EditWardrobeSheet({item,onSave,onCancel,stores,onAddStore}){
 function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete}){
   const [showLog,setShowLog]=useState(false);
   return <Sheet title={item.name||'Untitled'} onClose={onClose}>
-    <div style={{width:'100%',aspectRatio:'4/5',background:'#fff',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',borderRadius:14,marginBottom:14}}>
-      {item.photoUrl?<img src={item.photoUrl} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>:<span style={{fontSize:52}}>{CAT_EMOJI[item.category]||'👗'}</span>}
+    <div style={{width:'100%',maxHeight:'38vh',background:'#fff',display:'flex',alignItems:'center',justifyContent:'center',borderRadius:14,marginBottom:14,overflow:'hidden',flexShrink:0}}>
+      {item.photoUrl?<img src={item.photoUrl} alt="" style={{maxWidth:'100%',maxHeight:'38vh',objectFit:'contain',display:'block'}}/>:<div style={{padding:40,fontSize:52}}>{CAT_EMOJI[item.category]||'👗'}</div>}
     </div>
     {!item.complete&&<div style={{background:'var(--accent-bg)',borderRadius:10,padding:'9px 12px',marginBottom:12,border:'1px solid #DEC9AF',fontSize:12,color:'var(--accent)'}}>Some details are still missing — tap Edit to fill them in.</div>}
     <DetailRow label="Category" value={item.category}/><DetailRow label="Type" value={item.subcategory}/><DetailRow label="Brand" value={item.brand}/><DetailRow label="Store" value={item.store}/><DetailRow label="Colour" value={item.color}/><DetailRow label="Size" value={item.sizeLabel||item.size}/><DetailRow label="Date bought" value={formatDate(item.dateBought)}/><DetailRow label="Last worn" value={item.lastWornDate?`${formatDate(item.lastWornDate)} (${daysAgoLabel(item.lastWornDate)})`:'Never worn'}/><DetailRow label="Total wears" value={item.wearCount||0}/><DetailRow label="Occasions" value={(item.occasions||[]).join(', ')||null}/><DetailRow label="Notes" value={item.notes}/>
