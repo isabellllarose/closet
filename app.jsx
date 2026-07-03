@@ -30,20 +30,24 @@ const sb = {
 // Resize + convert to JPEG via canvas — fixes iPhone HEIC/camera roll issues
 function resizeImage(file, maxPx=1200) {
   return new Promise((resolve) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
-      const c = document.createElement('canvas');
-      c.width = w; c.height = h;
-      c.getContext('2d').drawImage(img, 0, 0, w, h);
-      c.toBlob(blob => resolve(blob), 'image/jpeg', 0.88);
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
-    img.src = url;
+    try {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        try {
+          URL.revokeObjectURL(url);
+          const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+          const w = Math.round(img.width * scale);
+          const h = Math.round(img.height * scale);
+          const c = document.createElement('canvas');
+          c.width = w; c.height = h;
+          c.getContext('2d').drawImage(img, 0, 0, w, h);
+          c.toBlob(blob => resolve(blob || file), 'image/jpeg', 0.88);
+        } catch(e) { resolve(file); }
+      };
+      img.onerror = () => { try { URL.revokeObjectURL(url); } catch(e) {} resolve(file); };
+      img.src = url;
+    } catch(e) { resolve(file); }
   });
 }
 
@@ -483,17 +487,23 @@ function WishPhotoManager({ urls, onChange }) {
   const [uploading, setUploading] = useState(false);
 
   async function handleFile(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    const localUrl = URL.createObjectURL(file);
-    onChange([...urls, localUrl]); // immediate preview
-    const uploaded = await sb.upload(file);
-    if (uploaded) {
-      onChange(prev => prev.map(u => u === localUrl ? uploaded : u));
+    try {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setUploading(true);
+      let localUrl;
+      try { localUrl = URL.createObjectURL(file); } catch(err) { setUploading(false); return; }
+      onChange([...urls, localUrl]);
+      const uploaded = await sb.upload(file);
+      if (uploaded) {
+        onChange(prev => prev.map(u => u === localUrl ? uploaded : u));
+      }
+      setUploading(false);
+      try { e.target.value = ''; } catch(err) {}
+    } catch(err) {
+      console.error('Photo upload error:', err);
+      setUploading(false);
     }
-    setUploading(false);
-    e.target.value = '';
   }
 
   return (
