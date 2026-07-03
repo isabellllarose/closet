@@ -455,8 +455,9 @@ function PhotoUploader({ photoUrl, onUrl, style={}, label='Tap to add photo\ncam
 
   return (
     <div style={{...style}}>
-      <div className="pz" style={{width:'100%',height:'100%',minHeight:style.minHeight||120}}
-        onClick={()=>ref.current?.click()}>
+      {/* No onClick on the div — the input covers the full area and handles it directly.
+          Having both causes a double-trigger on iPhone Safari which breaks uploads. */}
+      <div className="pz" style={{width:'100%',height:'100%',minHeight:style.minHeight||120}}>
         {photoUrl&&<img src={photoUrl} alt=""/>}
         {!photoUrl&&status!=='loading'&&<>
           <span style={{fontSize:24,zIndex:1}}>📷</span>
@@ -466,7 +467,9 @@ function PhotoUploader({ photoUrl, onUrl, style={}, label='Tap to add photo\ncam
           <div className="spinner" style={{borderTopColor:'var(--accent)',borderColor:'var(--border)'}}/>
           <span style={{fontSize:11,color:'var(--muted)'}}>Uploading…</span>
         </div>}
-        <input ref={ref} type="file" accept="image/*" onChange={handleFile}/>
+        <input ref={ref} type="file" accept="image/*"
+          onClick={e=>e.stopPropagation()}
+          onChange={handleFile}/>
       </div>
       {status==='ok'&&<div className="upload-status ok">✓ Photo saved</div>}
       {status==='err'&&<div className="upload-status err">⚠ Upload failed — photo visible this session only. Check storage settings.</div>}
@@ -506,10 +509,11 @@ function WishPhotoManager({ urls, onChange }) {
               style={{position:'absolute',top:-6,right:-6,width:18,height:18,borderRadius:'50%',background:'var(--red)',border:'none',color:'#fff',fontSize:10,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>✕</button>
           </div>
         ))}
-        <div style={{width:72,height:72,borderRadius:8,border:'2px dashed var(--border)',background:'var(--cream)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,position:'relative',fontSize:uploading?11:22,color:'var(--muted)'}}>
+        <div style={{width:72,height:72,borderRadius:8,border:'2px dashed var(--border)',background:'var(--cream)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,position:'relative',fontSize:uploading?11:22,color:'var(--muted)'}}>
           {uploading?'…':'＋'}
           <input ref={ref} type="file" accept="image/*"
             style={{position:'absolute',inset:0,opacity:0,cursor:'pointer'}}
+            onClick={e=>e.stopPropagation()}
             onChange={handleFile}/>
         </div>
       </div>
