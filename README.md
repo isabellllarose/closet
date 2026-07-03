@@ -10,7 +10,7 @@ Your personal wardrobe inventory.
 - `icon-192.png` / `icon-512.png` — app icons
 
 ## To deploy on GitHub Pages
-
+ 
 1. Go to github.com and create a new repository called `closet`
 2. Upload all these files to the repository
 3. Go to Settings → Pages → set Source to "Deploy from a branch" → select `main` → `/ (root)`
