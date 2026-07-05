@@ -486,21 +486,24 @@ function WishPhotoManager({ urls: urlsProp, onChange }) {
   const urls = Array.isArray(urlsProp) ? urlsProp : [];
   const MAX = 3;
   const canAdd = urls.length < MAX;
-  // Upload a single file using same pattern as wardrobe PhotoUploader
+  // currentUrls ref tracks latest urls between async calls
+  const currentUrls = useRef(urls);
+  currentUrls.current = urls;
+
   async function uploadOne(file) {
     let localUrl = null;
     try { localUrl = URL.createObjectURL(file); } catch(e) { return; }
-    // Add local preview immediately
-    onChange(prev => [...prev, localUrl]);
-    // Upload to Supabase in background
+    // Add local preview immediately using current value
+    const withLocal = [...currentUrls.current, localUrl];
+    onChange(withLocal);
+    // Upload to Supabase and swap in permanent URL
     const uploaded = await sb.upload(file).catch(() => null);
     if (uploaded) {
-      onChange(prev => prev.map(u => u === localUrl ? uploaded : u));
+      onChange(currentUrls.current.map(u => u === localUrl ? uploaded : u));
     }
   }
   async function handleFiles(e) {
     const files = Array.from(e.target.files || []).slice(0, MAX - urls.length);
-    // Upload sequentially — avoids overwhelming Safari
     for (const file of files) { await uploadOne(file); }
     try { e.target.value = ''; } catch(e) {}
   }
