@@ -481,47 +481,28 @@ function PhotoUploader({ photoUrl, onUrl, style={}, label='Tap to add photo\ncam
   );
 }
 
-// ── Wishlist multi-photo uploader — select up to 3 at once ───────────────────
+// ── Wishlist multi-photo uploader ────────────────────────────────────────────
 function WishPhotoManager({ urls, onChange }) {
-  const ref = useRef();
-  const [uploading, setUploading] = useState(false);
   const MAX = 3;
   const canAdd = urls.length < MAX;
-
-  async function handleFiles(e) {
-    try {
-      const files = Array.from(e.target.files||[]).slice(0, MAX - urls.length);
-      if (!files.length) return;
-      setUploading(true);
-
-      // Show local previews immediately
-      const localUrls = [];
-      for (const file of files) {
-        try { localUrls.push(URL.createObjectURL(file)); } catch(err) { localUrls.push(null); }
-      }
-      const validLocals = localUrls.filter(Boolean);
-      onChange([...urls, ...validLocals]);
-
-      // Upload each to Supabase and swap in permanent URLs
-      for (let i = 0; i < files.length; i++) {
-        if (!localUrls[i]) continue;
-        try {
-          const uploaded = await sb.upload(files[i]);
-          if (uploaded) {
-            const local = localUrls[i];
-            onChange(prev => prev.map(u => u === local ? uploaded : u));
-          }
-        } catch(err) { console.error('Upload error:', err); }
-      }
-
-      setUploading(false);
-      try { e.target.value = ''; } catch(err) {}
-    } catch(err) {
-      console.error('Photo upload error:', err);
-      setUploading(false);
+  // Upload a single file using same pattern as wardrobe PhotoUploader
+  async function uploadOne(file) {
+    let localUrl = null;
+    try { localUrl = URL.createObjectURL(file); } catch(e) { return; }
+    // Add local preview immediately
+    onChange(prev => [...prev, localUrl]);
+    // Upload to Supabase in background
+    const uploaded = await sb.upload(file).catch(() => null);
+    if (uploaded) {
+      onChange(prev => prev.map(u => u === localUrl ? uploaded : u));
     }
   }
-
+  async function handleFiles(e) {
+    const files = Array.from(e.target.files || []).slice(0, MAX - urls.length);
+    // Upload sequentially — avoids overwhelming Safari
+    for (const file of files) { await uploadOne(file); }
+    try { e.target.value = ''; } catch(e) {}
+  }
   return (
     <div style={{marginBottom:11}}>
       <label className="f-lbl">Photos (up to {MAX})</label>
@@ -537,37 +518,33 @@ function WishPhotoManager({ urls, onChange }) {
         ))}
         {canAdd && (
           <div style={{width:80,height:80,borderRadius:8,border:'2px dashed var(--border)',background:'var(--cream)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flexShrink:0,position:'relative',color:'var(--muted)',gap:3}}>
-            {uploading
-              ? <><div className="spinner" style={{borderTopColor:'var(--accent)',borderColor:'var(--border)'}}/>
-                  <span style={{fontSize:9}}>Uploading…</span></>
-              : <><span style={{fontSize:22}}>＋</span>
-                  <span style={{fontSize:9,letterSpacing:'.3px'}}>Add photo{MAX-urls.length>1?'s':''}</span></>}
-            <input ref={ref} type="file" accept="image/*"
-              multiple
+            <span style={{fontSize:22}}>＋</span>
+            <span style={{fontSize:9}}>Add photo{MAX-urls.length>1?'s':''}</span>
+            <input type="file" accept="image/*" multiple
               style={{position:'absolute',inset:0,opacity:0,cursor:'pointer'}}
               onClick={e=>e.stopPropagation()}
               onChange={handleFiles}/>
           </div>
         )}
       </div>
-      {urls.length===0 && <div style={{fontSize:10,color:'var(--muted)',marginTop:3}}>Tap + to add up to 3 photos — you can select multiple at once from your library</div>}
+      {urls.length===0&&<div style={{fontSize:10,color:'var(--muted)',marginTop:3}}>Select multiple photos at once from your library</div>}
     </div>
   );
 }
 
 
 // ── Wishlist photo viewer (swipe on phone, hover on desktop) ──────────────────
-function WishPhotoViewer({ urls }) {
+function WishPhotoViewer({ urls, compact=false }) {
   const [idx, setIdx] = useState(0);
   const touchStart = useRef(null);
+  const maxH = compact ? '36vh' : '50vh';
 
   if (!urls || urls.length === 0) {
-    return <div style={{width:'100%',aspectRatio:'1/1',background:'var(--cream)',borderRadius:14,display:'flex',alignItems:'center',justifyContent:'center',fontSize:44,opacity:.2,marginBottom:12}}>🛍️</div>;
+    return <div style={{width:'100%',height:compact?'36vh':'200px',background:'#fff',borderRadius:14,display:'flex',alignItems:'center',justifyContent:'center',fontSize:44,opacity:.2}}>🛍️</div>;
   }
 
   function prev() { setIdx(i=>(i-1+urls.length)%urls.length); }
   function next() { setIdx(i=>(i+1)%urls.length); }
-
   function onTouchStart(e) { touchStart.current = e.touches[0].clientX; }
   function onTouchEnd(e) {
     if (touchStart.current === null) return;
@@ -578,20 +555,21 @@ function WishPhotoViewer({ urls }) {
 
   return (
     <div>
-      <div className="wish-viewer"
+      <div style={{position:'relative',width:'100%',maxHeight:maxH,background:'#fff',
+        overflow:'hidden',borderRadius:14,display:'flex',alignItems:'center',justifyContent:'center'}}
         onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-        <img className="wish-viewer-img" src={urls[idx]} alt=""/>
-        {urls.length > 1 && <>
+        <img src={urls[idx]} alt=""
+          style={{maxWidth:'100%',maxHeight:maxH,objectFit:'contain',display:'block'}}/>
+        {urls.length>1&&<>
           <button className="wish-viewer-nav prev" onClick={e=>{e.stopPropagation();prev();}}>‹</button>
           <button className="wish-viewer-nav next" onClick={e=>{e.stopPropagation();next();}}>›</button>
         </>}
       </div>
-      {urls.length > 1 && (
-        <div className="wish-thumbs">
+      {urls.length>1&&(
+        <div className="wish-thumbs" style={{marginTop:6}}>
           {urls.map((url,i)=>(
             <div key={i} className={`wish-thumb${i===idx?' active':''}`}
-              onClick={()=>setIdx(i)}
-              onMouseEnter={()=>setIdx(i)}>
+              onClick={()=>setIdx(i)} onMouseEnter={()=>setIdx(i)}>
               <img src={url} alt=""/>
             </div>
           ))}
@@ -606,7 +584,26 @@ function StarDisplay({rating,size=12,onClick}){return <div style={{display:'flex
 function Toggle({on,onToggle}){return <div onClick={e=>{e.stopPropagation();onToggle();}} style={{width:44,height:26,background:on?'#5A8A60':'#E0D9CF',borderRadius:13,position:'relative',cursor:'pointer',transition:'background .2s',flexShrink:0}}><div style={{position:'absolute',top:3,left:3,width:20,height:20,background:'#fff',borderRadius:'50%',transition:'transform .2s',boxShadow:'0 1px 3px rgba(0,0,0,.2)',transform:on?'translateX(18px)':'none'}}/></div>;}
 function OccChips({selected,onChange}){return <div style={{display:'flex',flexWrap:'wrap',gap:5,marginTop:4}}>{OCCASIONS.map(o=>{const c=OCC_C[o]||{bg:'#eee',b:'#aaa',t:'#333'};const sel=selected.includes(o);return <div key={o} onClick={()=>onChange(sel?selected.filter(x=>x!==o):[...selected,o])} style={{padding:'4px 10px',borderRadius:20,fontSize:11,border:`1.5px solid ${c.b}`,cursor:'pointer',background:sel?c.b:c.bg,color:sel?'#fff':c.t,fontFamily:"'Jost',sans-serif"}}>{o}</div>})}</div>;}
 function StorePicker({value,onChange,stores,onAddStore}){const [open,setOpen]=useState(false);const [q,setQ]=useState(value||'');const ref=useRef();useEffect(()=>setQ(value||''),[value]);const filtered=stores.filter(s=>s.name.toLowerCase().includes(q.toLowerCase()));const exact=stores.some(s=>s.name.toLowerCase()===q.toLowerCase());function sel(name){onChange(name);setQ(name);setOpen(false);}useEffect(()=>{function h(e){if(ref.current&&!ref.current.contains(e.target))setOpen(false);}document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h);},[]);return <div className="store-picker" ref={ref}><input className="f-inp" value={q} placeholder="Search or type store name…" onChange={e=>{setQ(e.target.value);onChange(e.target.value);setOpen(true);}} onFocus={()=>setOpen(true)}/>{open&&<div className="store-options">{filtered.slice(0,8).map(s=><div key={s.id} className="store-opt" onClick={()=>sel(s.name)}>{s.name}</div>)}{q&&!exact&&<div className="store-opt add-new" onClick={()=>{onAddStore(q);sel(q);}}>+ Add "{q}" to stores</div>}</div>}</div>;}
-function Sheet({title,onClose,children,actions}){return <div className="overlay" onClick={onClose}><div className="sheet" onClick={e=>e.stopPropagation()}><div className="sheet-handle"/><div className="sheet-top"><div className="sheet-title">{title}</div><button className="sheet-close" onClick={onClose}>✕</button></div><div className="sheet-body">{children}</div>{actions&&<div className="sheet-actions">{actions}</div>}</div></div>;}
+function Sheet({title,onClose,children,actions}){
+  const sheetRef = useRef();
+  const startY = useRef(null);
+  function onTouchStart(e){ startY.current = e.touches[0].clientY; }
+  function onTouchEnd(e){
+    if(startY.current===null)return;
+    const dy = e.changedTouches[0].clientY - startY.current;
+    if(dy > 80) onClose();
+    startY.current = null;
+  }
+  return <div className="overlay" onClick={onClose}>
+    <div className="sheet" ref={sheetRef} onClick={e=>e.stopPropagation()}
+      onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      <div className="sheet-handle"/>
+      <div className="sheet-top"><div className="sheet-title">{title}</div><button className="sheet-close" onClick={onClose}>✕</button></div>
+      <div className="sheet-body">{children}</div>
+      {actions&&<div className="sheet-actions">{actions}</div>}
+    </div>
+  </div>;
+}
 function BtnO({onClick,children}){return <button onClick={onClick} style={{flex:1,padding:12,border:'1.5px solid #E0D9CF',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif",color:'#1A1714'}}>{children}</button>;}
 function BtnF({onClick,disabled,loading,children,color='#1A1714'}){return <button onClick={onClick} disabled={disabled||loading} style={{flex:1,padding:12,border:'none',borderRadius:12,background:color,color:'#fff',fontSize:13,cursor:disabled||loading?'default':'pointer',fontFamily:"'Jost',sans-serif",opacity:disabled||loading?.5:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>{loading&&<div className="spinner"/>}{children}</button>;}
 function FGrp({label,children,style={}}){return <div style={{marginBottom:11,...style}}><label className="f-lbl">{label}</label>{children}</div>;}
@@ -708,7 +705,9 @@ function EditWishSheet({item,onSave,onCancel,stores,onAddStore}){
 }
 function WishDetailSheet({item,similar,onClose,onEdit,onDelete,onRate,onMoveToWardrobe}){
   return <Sheet title={item.name} onClose={onClose}>
-    <WishPhotoViewer urls={item.photoUrls||[]}/>
+    <div style={{marginBottom:12}}>
+      <WishPhotoViewer urls={item.photoUrls||[]} compact={true}/>
+    </div>
     {similar.length>0&&<div style={{background:'var(--accent-bg)',borderRadius:10,padding:'9px 12px',marginBottom:12,border:'1px solid #DEC9AF',fontSize:12,color:'var(--accent)'}}>⚠️ You own something similar — {similar.map(s=>s.name).join(', ')}</div>}
     <div style={{marginBottom:12}}><div style={{fontSize:10,color:'var(--muted)',letterSpacing:.5,textTransform:'uppercase',marginBottom:6}}>How much do you need this</div><StarDisplay rating={item.rating||3} size={24} onClick={onRate}/><div style={{fontSize:10,color:'var(--muted)',marginTop:4}}>{NEED_LBL[item.rating||3]}</div></div>
     <DetailRow label="Store" value={item.store}/><DetailRow label="Brand" value={item.brand}/><DetailRow label="Category" value={item.category}/><DetailRow label="Colour" value={item.color}/><DetailRow label="Price" value={item.price?`A$${item.price}${item.onSale?' (sale)':''}`:null}/><DetailRow label="Original price" value={item.onSale&&item.origPrice?`A$${item.origPrice}`:null}/><DetailRow label="Added" value={item.addedDate}/><DetailRow label="Notes" value={item.notes}/>
@@ -733,17 +732,59 @@ function OutfitThumbnail({items}){
 }
 
 function FreeformCanvas({items,positions,onPositionsChange}){
-  const canvasRef=useRef();const dragging=useRef(null);
-  const [pos,setPos]=useState(()=>{const p={};items.forEach((item,i)=>{p[item.id]=positions?.[item.id]||{x:20+(i%3)*100,y:20+Math.floor(i/3)*130};});return p;});
+  const canvasRef=useRef();
+  const dragging=useRef(null);
+  const pinch=useRef(null);
+  const [pos,setPos]=useState(()=>{const p={};items.forEach((item,i)=>{p[item.id]=positions?.[item.id]||{x:20+(i%3)*100,y:20+Math.floor(i/3)*130,scale:1};});return p;});
+
   function getXY(e){const rect=canvasRef.current.getBoundingClientRect();if(e.touches)return{x:e.touches[0].clientX-rect.left,y:e.touches[0].clientY-rect.top};return{x:e.clientX-rect.left,y:e.clientY-rect.top};}
-  function onStart(e,id){e.preventDefault();const{x,y}=getXY(e);dragging.current={id,ox:x-(pos[id]?.x||0),oy:y-(pos[id]?.y||0)};}
-  function onMove(e){if(!dragging.current)return;e.preventDefault();const{x,y}=getXY(e);const c=canvasRef.current;const nx=Math.max(0,Math.min(c.clientWidth-88,x-dragging.current.ox));const ny=Math.max(0,Math.min(c.clientHeight-108,y-dragging.current.oy));setPos(p=>({...p,[dragging.current.id]:{x:nx,y:ny}}));}
-  function onEnd(){if(dragging.current){onPositionsChange(pos);dragging.current=null;}}
-  return <div ref={canvasRef} className="freeform-canvas" onMouseMove={onMove} onMouseUp={onEnd} onMouseLeave={onEnd} onTouchMove={onMove} onTouchEnd={onEnd}>
-    {items.map(item=><div key={item.id} className="freeform-item" style={{left:pos[item.id]?.x||0,top:pos[item.id]?.y||0}} onMouseDown={e=>onStart(e,item.id)} onTouchStart={e=>onStart(e,item.id)}>
-      {item.photoUrl?<img src={item.photoUrl} alt={item.name} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<span style={{fontSize:28,opacity:.35}}>{CAT_EMOJI[item.category]||'👗'}</span>}
-      <div className="fi-label">{item.name?.split(' ')[0]}</div>
-    </div>)}
+  function pinchDist(e){const[a,b]=e.touches;return Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY);}
+
+  function onStart(e,id){
+    e.preventDefault();
+    if(e.touches&&e.touches.length===2){
+      // pinch start
+      pinch.current={id,startDist:pinchDist(e),startScale:pos[id]?.scale||1};
+      dragging.current=null;
+      return;
+    }
+    const{x,y}=getXY(e);
+    dragging.current={id,ox:x-(pos[id]?.x||0),oy:y-(pos[id]?.y||0)};
+  }
+  function onMove(e){
+    e.preventDefault();
+    if(e.touches&&e.touches.length===2&&pinch.current){
+      const dist=pinchDist(e);
+      const scale=Math.max(0.4,Math.min(2.5,pinch.current.startScale*(dist/pinch.current.startDist)));
+      setPos(p=>({...p,[pinch.current.id]:{...(p[pinch.current.id]||{}),scale}}));
+      return;
+    }
+    if(!dragging.current)return;
+    const{x,y}=getXY(e);
+    const c=canvasRef.current;
+    const nx=Math.max(0,Math.min(c.clientWidth-88,x-dragging.current.ox));
+    const ny=Math.max(0,Math.min(c.clientHeight-108,y-dragging.current.oy));
+    setPos(p=>({...p,[dragging.current.id]:{...(p[dragging.current.id]||{}),x:nx,y:ny}}));
+  }
+  function onEnd(){
+    if(dragging.current||pinch.current){onPositionsChange(pos);}
+    dragging.current=null;pinch.current=null;
+  }
+
+  const W=88,H=108;
+  return <div ref={canvasRef} className="freeform-canvas"
+    onMouseMove={onMove} onMouseUp={onEnd} onMouseLeave={onEnd}
+    onTouchMove={onMove} onTouchEnd={onEnd}>
+    {items.map(item=>{
+      const p=pos[item.id]||{x:0,y:0,scale:1};
+      const sc=p.scale||1;
+      return <div key={item.id} className="freeform-item"
+        style={{left:p.x||0,top:p.y||0,width:W*sc,height:H*sc,transition:'box-shadow .15s'}}
+        onMouseDown={e=>onStart(e,item.id)} onTouchStart={e=>onStart(e,item.id)}>
+        {item.photoUrl?<img src={item.photoUrl} alt={item.name} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<span style={{fontSize:28*sc,opacity:.35}}>{CAT_EMOJI[item.category]||'👗'}</span>}
+        <div className="fi-label">{item.name?.split(' ')[0]}</div>
+      </div>;
+    })}
   </div>;
 }
 
@@ -943,9 +984,7 @@ function App(){
 
         {tab==='stats'&&<>
           <div className="stat-grid">{[{n:wardrobe.filter(i=>i.complete).length,l:'Items in wardrobe'},{n:outfits.length,l:'Saved outfits'},{n:wishlist.length,l:'On wishlist'},{n:unworn.length,l:'Unworn 30+ days'}].map(s=><div key={s.l} className="stat-card"><div className="stat-n">{s.n}</div><div className="stat-l">{s.l}</div></div>)}</div>
-          <div className="seclbl" style={{marginTop:6}}>By category</div>
-          <div style={{padding:'0 16px 14px'}}>{Object.keys(CATEGORY_MAP).map(cat=>{const count=wardrobe.filter(i=>i.category===cat).length;if(!count)return null;const pct=Math.round(count/Math.max(wardrobe.length,1)*100);return<div key={cat} style={{display:'flex',alignItems:'center',gap:10,background:'#fff',borderRadius:10,padding:'9px 12px',border:'1px solid var(--border)',marginBottom:6}}><span style={{fontSize:16,width:24,textAlign:'center'}}>{CAT_EMOJI[cat]}</span><span style={{fontSize:12,fontWeight:500,width:100,flexShrink:0}}>{cat}</span><div style={{flex:1,height:3,background:'var(--border)',borderRadius:2,overflow:'hidden'}}><div style={{height:'100%',background:'var(--accent)',width:`${pct}%`,borderRadius:2}}/></div><span style={{fontSize:11,color:'var(--muted)',width:24,textAlign:'right',flexShrink:0}}>{count}</span></div>;})}
-          </div>
+
           {unworn.length>0&&<><div className="seclbl">Consider rewearing</div><div style={{display:'flex',flexDirection:'column',gap:7,padding:'0 16px 24px'}}>{unworn.slice(0,6).map(i=><div key={i.id} onClick={()=>{setSelItem(i);setEditItem(false);setTab('wardrobe');}} style={{display:'flex',alignItems:'center',gap:10,background:'#fff',borderRadius:12,padding:'10px 13px',border:'1px solid var(--border)',cursor:'pointer'}}><div style={{width:36,height:36,borderRadius:6,background:'#fff',flexShrink:0,overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,border:'1px solid var(--border)'}}>{i.photoUrl?<img src={i.photoUrl} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>:CAT_EMOJI[i.category]}</div><div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{i.name}</div><div style={{fontSize:10,color:'var(--red)',marginTop:1}}>{i.lastWornDate?`Last worn ${formatDate(i.lastWornDate)}`:'Never worn'} · {i.wearCount||0} wears</div></div><span style={{fontSize:11,color:'var(--muted)',textDecoration:'underline',flexShrink:0}}>View →</span></div>)}</div></>}
         </>}
 
