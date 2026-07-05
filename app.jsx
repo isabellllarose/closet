@@ -79,7 +79,7 @@ const uid    = () => `${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
 const toRow  = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,brand:i.brand||null,store:i.store||null,color:i.color||null,size:i.size||null,size_label:i.sizeLabel||i.size||null,photo_url:i.photoUrl||null,occasions:i.occasions||[],date_bought:i.dateBought||null,last_worn_date:i.lastWornDate||null,wear_count:i.wearCount||0,notes:i.notes||null,complete:!!i.complete});
 const fromRow= r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,brand:r.brand,store:r.store,color:r.color,size:r.size,sizeLabel:r.size_label,photoUrl:r.photo_url,occasions:r.occasions||[],dateBought:r.date_bought,lastWornDate:r.last_worn_date,wearCount:r.wear_count||0,notes:r.notes,complete:r.complete});
 const toWR   = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,store:i.store||null,brand:i.brand||null,url:i.url||null,price:i.price||null,orig_price:i.origPrice||null,on_sale:!!i.onSale,rating:i.rating||3,photo_urls:i.photoUrls||[],color:i.color||null,notes:i.notes||null,added_date:i.addedDate||today2()});
-const fromWR = r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,store:r.store,brand:r.brand,url:r.url,price:r.price,origPrice:r.orig_price,onSale:r.on_sale,rating:r.rating||3,photoUrls:r.photo_urls||[],color:r.color,notes:r.notes,addedDate:r.added_date});
+const fromWR = r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,store:r.store,brand:r.brand,url:r.url,price:r.price,origPrice:r.orig_price,onSale:r.on_sale,rating:r.rating||3,photoUrls:Array.isArray(r.photo_urls)?r.photo_urls:(r.photo_urls?[r.photo_urls]:[]),color:r.color,notes:r.notes,addedDate:r.added_date});
 const toOR   = o => ({id:o.id,name:o.name,occasion:o.occasion||null,notes:o.notes||null,item_ids:o.itemIds||[],item_positions:o.positions||null,wear_count:o.wearCount||0,last_worn_date:o.lastWornDate||null});
 const fromOR = r => ({id:r.id,name:r.name,occasion:r.occasion,notes:r.notes,itemIds:r.item_ids||[],positions:r.item_positions||null,wearCount:r.wear_count||0,lastWornDate:r.last_worn_date});
 
@@ -482,7 +482,8 @@ function PhotoUploader({ photoUrl, onUrl, style={}, label='Tap to add photo\ncam
 }
 
 // ── Wishlist multi-photo uploader ────────────────────────────────────────────
-function WishPhotoManager({ urls, onChange }) {
+function WishPhotoManager({ urls: urlsProp, onChange }) {
+  const urls = Array.isArray(urlsProp) ? urlsProp : [];
   const MAX = 3;
   const canAdd = urls.length < MAX;
   // Upload a single file using same pattern as wardrobe PhotoUploader
@@ -534,7 +535,8 @@ function WishPhotoManager({ urls, onChange }) {
 
 
 // ── Wishlist photo viewer (swipe on phone, hover on desktop) ──────────────────
-function WishPhotoViewer({ urls, compact=false }) {
+function WishPhotoViewer({ urls: urlsProp, compact=false }) {
+  const urls = Array.isArray(urlsProp) ? urlsProp : [];
   const [idx, setIdx] = useState(0);
   const touchStart = useRef(null);
   const maxH = compact ? '36vh' : '50vh';
@@ -671,7 +673,7 @@ function WishFields({d,up,stores,onAddStore}){
   const subcats=CATEGORY_MAP[d.category]||[];
   async function fetchUrl(){if(!urlIn.trim())return;setFetching(true);await new Promise(r=>setTimeout(r,700));let sn='';try{sn=new URL(urlIn).hostname.replace('www.','').split('.')[0];}catch{}sn=sn?sn.charAt(0).toUpperCase()+sn.slice(1):'';up({url:urlIn,store:d.store||sn,name:d.name||`Item from ${sn}`});setFetching(false);}
   return <>
-    <WishPhotoManager urls={d.photoUrls||[]} onChange={urls=>up({photoUrls:urls})}/>
+    <WishPhotoManager urls={d.photoUrls||[]} onChange={newUrls=>up({photoUrls:newUrls})}/>
     <FGrp label="Paste a link (optional)">
       <div style={{display:'flex',gap:6}}><FInp value={urlIn} placeholder="https://zara.com/product/…" onChange={e=>{setUrlIn(e.target.value);up({url:e.target.value});}} style={{flex:1}}/><button onClick={fetchUrl} disabled={fetching||!urlIn} style={{padding:'10px 14px',background:'var(--ink)',color:'#fff',border:'none',borderRadius:10,fontSize:12,cursor:'pointer',fontFamily:"'Jost',sans-serif",opacity:fetching||!urlIn?.5:1,flexShrink:0,display:'flex',alignItems:'center',gap:6}}>{fetching?<><div className="spinner"/>Fetching</>:'Fetch'}</button></div>
     </FGrp>
