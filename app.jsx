@@ -87,8 +87,8 @@ function isOverdue(iso, n=30) {
 
 // ── Data helpers ──────────────────────────────────────────────────────────────
 const uid    = () => `${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
-const toRow  = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,brand:i.brand||null,store:i.store||null,color:i.color||null,size:i.size||null,size_label:i.sizeLabel||i.size||null,photo_url:i.photoUrl||null,occasions:i.occasions||[],date_bought:i.dateBought||null,last_worn_date:i.lastWornDate||null,wear_count:i.wearCount||0,notes:i.notes||null,complete:!!i.complete});
-const fromRow= r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,brand:r.brand,store:r.store,color:r.color,size:r.size,sizeLabel:r.size_label,photoUrl:r.photo_url,occasions:r.occasions||[],dateBought:r.date_bought,lastWornDate:r.last_worn_date,wearCount:r.wear_count||0,notes:r.notes,complete:r.complete});
+const toRow  = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,brand:i.brand||null,store:i.store||null,colors:Array.isArray(i.colors)?i.colors:(i.color?[i.color]:[]),size:i.size||null,size_label:i.sizeLabel||i.size||null,photo_url:i.photoUrl||null,occasions:i.occasions||[],date_bought:i.dateBought||null,last_worn_date:i.lastWornDate||null,wear_count:i.wearCount||0,notes:i.notes||null,complete:!!i.complete});
+const fromRow= r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,brand:r.brand,store:r.store,colors:Array.isArray(r.colors)?r.colors:(r.color?[r.color]:[]),color:Array.isArray(r.colors)&&r.colors.length?r.colors[0]:(r.color||null),size:r.size,sizeLabel:r.size_label,photoUrl:r.photo_url,occasions:r.occasions||[],dateBought:r.date_bought,lastWornDate:r.last_worn_date,wearCount:r.wear_count||0,notes:r.notes,complete:r.complete});
 const toWR   = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,store:i.store||null,brand:i.brand||null,url:i.url||null,price:i.price||null,orig_price:i.origPrice||null,on_sale:!!i.onSale,rating:i.rating||3,photo_urls:i.photoUrls||[],color:i.color||null,notes:i.notes||null,added_date:i.addedDate||today2()});
 const fromWR = r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,store:r.store,brand:r.brand,url:r.url,price:r.price,origPrice:r.orig_price,onSale:r.on_sale,rating:r.rating||3,photoUrls:Array.isArray(r.photo_urls)?r.photo_urls:(r.photo_urls?[r.photo_urls]:[]),color:r.color,notes:r.notes,addedDate:r.added_date});
 const toOR   = o => ({id:o.id,tags:o.tags||[],notes:o.notes||null,item_ids:o.itemIds||[],item_positions:o.positions||null,wear_count:o.wearCount||0,last_worn_date:o.lastWornDate||null});
@@ -409,7 +409,8 @@ const CSS = `
   .slot-name{font-size:12px;font-weight:500;color:var(--ink);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .slot-remove{background:none;border:none;font-size:14px;cursor:pointer;color:var(--muted);padding:2px;flex-shrink:0;}
   .slot-remove:hover{color:var(--red);}
-  .freeform-canvas{width:100%;height:300px;position:relative;background:var(--cream);border-radius:12px;overflow:hidden;touch-action:none;}
+  .freeform-canvas{width:100%;height:360px;position:relative;background:var(--cream);border-radius:12px;overflow:hidden;touch-action:none;}
+  @media(min-width:768px){.freeform-canvas{height:480px;}}
   .freeform-item{position:absolute;width:88px;height:108px;background:#fff;border-radius:10px;border:1.5px solid var(--border);overflow:hidden;cursor:grab;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.08);user-select:none;}
   .freeform-item:active{cursor:grabbing;box-shadow:0 6px 20px rgba(0,0,0,.18);z-index:10;}
   .freeform-item img{width:100%;height:100%;object-fit:contain;}
@@ -758,87 +759,71 @@ function BrandPicker({value, onChange, wardrobe, extraBrands, onAddBrand}) {
   </div>;
 }
 
-// ── ColourPicker ──────────────────────────────────────────────────────────────
-function ColourPicker({value, onChange, wardrobeColours, extraColours, onAddColour}) {
+// ── ColourPicker — multi-colour tag input ────────────────────────────────────
+function ColourPicker({values=[], onChange, wardrobeColours=[], extraColours=[], onAddColour=()=>{}}) {
+  const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
-  const [q, setQ] = useState(value||'');
   const ref = useRef();
-  // Collect all colours from wardrobe + extras, deduplicated
-  const usedColours = [...new Set([
-    ...wardrobeColours.filter(Boolean).map(c=>c.trim()),
-    ...extraColours.filter(Boolean),
-  ])].sort();
-  const filtered = q
-    ? usedColours.filter(c => c.toLowerCase().includes(q.toLowerCase()))
-    : usedColours;
-  const exact = usedColours.some(c => c.toLowerCase() === q.toLowerCase());
-  useEffect(()=>setQ(value||''),[value]);
-  function sel(c){ onChange(c); setQ(c); setOpen(false); }
+  const allColours = [...new Set([...wardrobeColours, ...extraColours].filter(Boolean))].sort();
+  const filtered = q ? allColours.filter(c=>c.toLowerCase().includes(q.toLowerCase())) : allColours;
+  const exact = allColours.some(c=>c.toLowerCase()===q.toLowerCase());
+
+  function addColour(c) {
+    const trimmed = c.trim();
+    if (!trimmed || values.includes(trimmed)) return;
+    onAddColour(trimmed);
+    onChange([...values, trimmed]);
+    setQ(''); setOpen(false);
+  }
+  function removeColour(c) { onChange(values.filter(v=>v!==c)); }
+  function handleKey(e) {
+    if (e.key === 'Enter' || e.key === ';') { e.preventDefault(); if(q.trim()) addColour(q); }
+  }
+  function SwatchDot({colour}){
+    const swatchMap = {Neutrals:'#F5F0E8',Black:'#222',Grey:'#8A8A8A',Brown:'#8B5E3C',Red:'#C4623A',Pink:'#E8A0B0',Orange:'#E8824A',Yellow:'#D4A840',Green:'#5A8A60',Blue:'#3A6A9A',Purple:'#7A5A9A',Multi:'linear-gradient(135deg,#E8824A,#3A6A9A)'};
+    const bg = swatchMap[getColourGroup(colour)] || '#E0D9CF';
+    return <span style={{width:8,height:8,borderRadius:'50%',flexShrink:0,display:'inline-block',background:bg,border:'1px solid rgba(0,0,0,.12)',marginRight:4}}/>;
+  }
+
   useEffect(()=>{
     function h(e){ if(ref.current&&!ref.current.contains(e.target))setOpen(false); }
     document.addEventListener('mousedown',h);
     return()=>document.removeEventListener('mousedown',h);
   },[]);
-  // Colour swatch dot
-  function SwatchDot({colour}){
-    const group = getColourGroup(colour);
-    const swatchMap = {
-      Neutrals:'#F5F0E8',Black:'#1A1714',Grey:'#8A8A8A',Brown:'#8B5E3C',
-      Red:'#C4623A',Pink:'#E8A0B0',Orange:'#E8824A',Yellow:'#D4A840',
-      Green:'#5A8A60',Blue:'#3A6A9A',Purple:'#7A5A9A',Multi:'linear-gradient(135deg,#E8824A,#3A6A9A)',
-    };
-    const bg = swatchMap[group] || '#E0D9CF';
-    return <span style={{width:10,height:10,borderRadius:'50%',flexShrink:0,display:'inline-block',
-      background:bg,border:'1px solid rgba(0,0,0,.12)',marginRight:5}}/>;
-  }
-  return <div className="store-picker" ref={ref}>
-    <input className="f-inp" value={q} placeholder="e.g. Camel, Navy, Dusty rose…"
-      onChange={e=>{setQ(e.target.value);onChange(e.target.value);setOpen(true);}}
-      onFocus={()=>setOpen(true)}/>
-    {open&&<div className="store-options">
-      {filtered.slice(0,10).map(c=><div key={c} className="store-opt"
-        style={{display:'flex',alignItems:'center'}}
-        onClick={()=>sel(c)}>
+
+  return <div ref={ref}>
+    {/* Existing colour tags */}
+    {values.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:6}}>
+      {values.map(c=><div key={c} style={{display:'inline-flex',alignItems:'center',gap:3,padding:'3px 8px',borderRadius:20,fontSize:11,background:'var(--cream)',border:'1.5px solid var(--border)'}}>
         <SwatchDot colour={c}/>{c}
-        {getColourGroup(c)&&<span style={{fontSize:10,color:'var(--muted)',marginLeft:'auto',paddingLeft:8}}>{getColourGroup(c)}</span>}
+        {getColourGroup(c)&&<span style={{fontSize:9,color:'var(--muted)',marginLeft:2}}>{getColourGroup(c)}</span>}
+        <span onClick={()=>removeColour(c)} style={{cursor:'pointer',marginLeft:3,opacity:.5,fontSize:11}}>✕</span>
       </div>)}
-      {q&&!exact&&<div className="store-opt add-new"
-        style={{display:'flex',alignItems:'center'}}
-        onClick={()=>{onAddColour(q);sel(q);}}>
-        <SwatchDot colour={q}/>+ Add "{q}"
-        {getColourGroup(q)&&<span style={{fontSize:10,color:'var(--muted)',marginLeft:'auto',paddingLeft:8}}>→ {getColourGroup(q)}</span>}
-      </div>}
     </div>}
+    {/* Input */}
+    <div className="store-picker">
+      <input className="f-inp" value={q}
+        placeholder={values.length===0?"e.g. Navy; Stripe — separate with semicolons":"Add another colour…"}
+        onChange={e=>{setQ(e.target.value);setOpen(true);}}
+        onFocus={()=>setOpen(true)}
+        onKeyDown={handleKey}/>
+      {open&&(filtered.length>0||q)&&<div className="store-options">
+        {filtered.slice(0,8).map(c=><div key={c} className="store-opt"
+          style={{display:'flex',alignItems:'center'}}
+          onClick={()=>addColour(c)}>
+          <SwatchDot colour={c}/>{c}
+          {getColourGroup(c)&&<span style={{fontSize:10,color:'var(--muted)',marginLeft:'auto',paddingLeft:8}}>{getColourGroup(c)}</span>}
+        </div>)}
+        {q&&!exact&&<div className="store-opt add-new" style={{display:'flex',alignItems:'center'}} onClick={()=>addColour(q)}>
+          <SwatchDot colour={q}/>+ Add "{q}"
+          {getColourGroup(q)&&<span style={{fontSize:10,color:'var(--muted)',marginLeft:'auto',paddingLeft:8}}>→ {getColourGroup(q)}</span>}
+        </div>}
+      </div>}
+    </div>
+    <div style={{fontSize:10,color:'var(--muted)',marginTop:3}}>Press Enter or ; to add multiple</div>
   </div>;
 }
 
-function Sheet({title,onClose,children,actions}){
-  const sheetRef = useRef();
-  const startY = useRef(null);
-  function onTouchStart(e){ startY.current = e.touches[0].clientY; }
-  function onTouchEnd(e){
-    if(startY.current===null)return;
-    const dy = e.changedTouches[0].clientY - startY.current;
-    if(dy > 80) onClose();
-    startY.current = null;
-  }
-  return <div className="overlay" onClick={onClose}>
-    <div className="sheet" ref={sheetRef} onClick={e=>e.stopPropagation()}
-      onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-      <div className="sheet-handle"/>
-      <div className="sheet-top"><div className="sheet-title">{title}</div><button className="sheet-close" onClick={onClose}>✕</button></div>
-      <div className="sheet-body">{children}</div>
-      {actions&&<div className="sheet-actions">{actions}</div>}
-    </div>
-  </div>;
-}
-function BtnO({onClick,children}){return <button onClick={onClick} style={{flex:1,padding:12,border:'1.5px solid #E0D9CF',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif",color:'#1A1714'}}>{children}</button>;}
-function BtnF({onClick,disabled,loading,children,color='#1A1714'}){return <button onClick={onClick} disabled={disabled||loading} style={{flex:1,padding:12,border:'none',borderRadius:12,background:color,color:'#fff',fontSize:13,cursor:disabled||loading?'default':'pointer',fontFamily:"'Jost',sans-serif",opacity:disabled||loading?.5:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>{loading&&<div className="spinner"/>}{children}</button>;}
-function FGrp({label,children,style={}}){return <div style={{marginBottom:11,...style}}><label className="f-lbl">{label}</label>{children}</div>;}
-function FInp({value,onChange,placeholder='',type='text',style={}}){return <input type={type} value={value||''} onChange={onChange} placeholder={placeholder} className="f-inp" style={style}/>;}
-function FSel({value,onChange,options,placeholder=''}){return <select value={value||''} onChange={onChange} className="f-inp f-sel">{placeholder&&<option value="">{placeholder}</option>}{options.map(o=><option key={o} value={o}>{o}</option>)}</select>;}
-function FRow({children}){return <div style={{display:'flex',gap:8}}>{children}</div>;}
-function DetailRow({label,value}){if(!value&&value!==0)return null;return <div className="detail-row"><span style={{fontSize:11,color:'#8A837A',flexShrink:0}}>{label}</span><span style={{fontSize:12,fontWeight:500,color:'#1A1714',textAlign:'right'}}>{value}</span></div>;}
 
 // ── Wardrobe fields ───────────────────────────────────────────────────────────
 function WardrobeFields({d,up,stores,onAddStore,wardrobe=[],extraBrands=[],onAddBrand=()=>{},wardrobeColours=[],extraColours=[],onAddColour=()=>{}}){
@@ -852,7 +837,7 @@ function WardrobeFields({d,up,stores,onAddStore,wardrobe=[],extraBrands=[],onAdd
         {subcats.length>0&&<FGrp label="Type" style={{marginBottom:0}}><FSel value={d.subcategory||''} onChange={e=>up({subcategory:e.target.value})} placeholder="Select type…" options={subcats}/></FGrp>}
       </div>
     </div>
-    <FRow><FGrp label="Brand" style={{flex:1}}><BrandPicker value={d.brand||''} onChange={v=>up({brand:v})} wardrobe={wardrobe} extraBrands={extraBrands} onAddBrand={onAddBrand}/></FGrp><FGrp label="Colour" style={{flex:1}}><ColourPicker value={d.color||''} onChange={v=>up({color:v})} wardrobeColours={wardrobeColours} extraColours={extraColours} onAddColour={onAddColour}/></FGrp></FRow>
+    <FRow><FGrp label="Brand" style={{flex:1}}><BrandPicker value={d.brand||''} onChange={v=>up({brand:v})} wardrobe={wardrobe} extraBrands={extraBrands} onAddBrand={onAddBrand}/></FGrp><FGrp label="Colours" style={{flex:1}}><ColourPicker values={d.colors||[]} onChange={v=>up({colors:v,color:v[0]||null})} wardrobeColours={wardrobeColours} extraColours={extraColours} onAddColour={onAddColour}/></FGrp></FRow>
     <FRow><FGrp label="Size" style={{flex:1}}><FInp value={d.size} placeholder="S / 10 / 27" onChange={e=>up({size:e.target.value,sizeLabel:e.target.value})}/></FGrp><FGrp label="Store" style={{flex:1}}><StorePicker value={d.store||''} onChange={v=>up({store:v})} stores={stores} onAddStore={onAddStore}/></FGrp></FRow>
     <DateField label="Date bought" value={d.dateBought} onChange={v=>up({dateBought:v})}/>
     <FGrp label="Notes"><FInp value={d.notes} placeholder="Fit, how it runs, where you wear it…" onChange={e=>up({notes:e.target.value})}/></FGrp>
@@ -883,7 +868,7 @@ function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete}){
       {item.photoUrl?<img src={item.photoUrl} alt="" style={{maxWidth:'100%',maxHeight:'38vh',objectFit:'contain',display:'block'}}/>:<div style={{padding:40,fontSize:52}}>{CAT_EMOJI[item.category]||'👗'}</div>}
     </div>
     {!item.complete&&<div style={{background:'var(--accent-bg)',borderRadius:10,padding:'9px 12px',marginBottom:12,border:'1px solid #DEC9AF',fontSize:12,color:'var(--accent)'}}>Some details are still missing — tap Edit to fill them in.</div>}
-    <DetailRow label="Category" value={item.category}/><DetailRow label="Type" value={item.subcategory}/><DetailRow label="Brand" value={item.brand}/><DetailRow label="Store" value={item.store}/><DetailRow label="Colour" value={item.color}/><DetailRow label="Size" value={item.sizeLabel||item.size}/><DetailRow label="Date bought" value={item.dateBought ? `${formatDate(item.dateBought)}${timeSincePurchase(item.dateBought) ? " · " + timeSincePurchase(item.dateBought) : ""}` : null}/><DetailRow label="Last worn" value={item.lastWornDate?`${formatDate(item.lastWornDate)} (${daysAgoLabel(item.lastWornDate)})`:'Never worn'}/><DetailRow label="Total wears" value={item.wearCount||0}/><DetailRow label="Occasions" value={(item.occasions||[]).join(', ')||null}/><DetailRow label="Notes" value={item.notes}/>
+    <DetailRow label="Category" value={item.category}/><DetailRow label="Type" value={item.subcategory}/><DetailRow label="Brand" value={item.brand}/><DetailRow label="Store" value={item.store}/><DetailRow label="Colour" value={(item.colors||[item.color]).filter(Boolean).join(", ")||null}/><DetailRow label="Size" value={item.sizeLabel||item.size}/><DetailRow label="Date bought" value={item.dateBought ? `${formatDate(item.dateBought)}${timeSincePurchase(item.dateBought) ? " · " + timeSincePurchase(item.dateBought) : ""}` : null}/><DetailRow label="Last worn" value={item.lastWornDate?`${formatDate(item.lastWornDate)} (${daysAgoLabel(item.lastWornDate)})`:'Never worn'}/><DetailRow label="Total wears" value={item.wearCount||0}/><DetailRow label="Occasions" value={(item.occasions||[]).join(', ')||null}/><DetailRow label="Notes" value={item.notes}/>
     <div style={{display:'flex',gap:8,marginTop:14}}>
       <button onClick={()=>setShowLog(true)} style={{flex:1,padding:12,background:'var(--green)',color:'#fff',border:'none',borderRadius:12,fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>+ Log wear</button>
       <button onClick={onEdit} style={{flex:1,padding:12,border:'1.5px solid var(--border)',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Edit</button>
@@ -964,7 +949,7 @@ function FreeformCanvas({items,positions,onPositionsChange}){
   const stateRef=useRef({dragging:null,pinch:null});
   const [pos,setPos]=useState(()=>{
     const p={};
-    items.forEach((item,i)=>{p[item.id]=positions?.[item.id]||{x:20+(i%3)*100,y:20+Math.floor(i/3)*130,scale:1};});
+    items.forEach((item,i)=>{p[item.id]=positions?.[item.id]||{x:20+(i%3)*140,y:20+Math.floor(i/3)*160,scale:1};});
     return p;
   });
   const posRef=useRef(pos);
@@ -1015,7 +1000,8 @@ function FreeformCanvas({items,positions,onPositionsChange}){
     {items.map(item=>{
       const p=pos[item.id]||{x:0,y:0,scale:1};
       const sc=p.scale||1;
-      const W=Math.round(88*sc), H=Math.round(108*sc);
+      const BASE=Math.max(110, Math.round(Math.min(canvasRef.current?.clientWidth||300, canvasRef.current?.clientHeight||300) * 0.28));
+      const W=Math.round(BASE*sc), H=Math.round(BASE*1.2*sc);
       return <div key={item.id} className="freeform-item"
         style={{left:Math.round(p.x||0),top:Math.round(p.y||0),width:W,height:H}}
         onMouseDown={e=>onStart(e,item.id)} onTouchStart={e=>onStart(e,item.id)}>
@@ -1226,8 +1212,8 @@ function App(){
     for(const id of outfit.itemIds){const item=wardrobe.find(w=>w.id===id);if(!item)continue;const ui={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};try{await sb.upd('wardrobe',id,{last_worn_date:date,wear_count:ui.wearCount});setW(p=>p.map(x=>x.id===id?ui:x));}catch(e){console.error(e);}}
   }
 
-  const wardrobeColours = [...new Set(wardrobe.map(i=>i.color).filter(Boolean))];
-  const fW=wardrobe.filter(i=>{const mc=catFilter==='All'||i.category===catFilter;const sc=subcatFilter==='All'||i.subcategory===subcatFilter;const cc=colourFilter==='All'||getColourGroup(i.color)===colourFilter;const q=search.toLowerCase();return mc&&sc&&cc&&(!q||[i.name,i.brand,i.color,i.store,i.category,i.subcategory].some(s=>(s||'').toLowerCase().includes(q)));});
+  const wardrobeColours = [...new Set(wardrobe.flatMap(i=>i.colors||[]).filter(Boolean))];
+  const fW=wardrobe.filter(i=>{const mc=catFilter==='All'||i.category===catFilter;const sc=subcatFilter==='All'||i.subcategory===subcatFilter;const cc=colourFilter==='All'||(i.colors||[]).some(c=>getColourGroup(c)===colourFilter);const q=search.toLowerCase();return mc&&sc&&cc&&(!q||[i.name,i.brand,...(i.colors||[]),i.store,i.category,i.subcategory].some(s=>(s||'').toLowerCase().includes(q)));});
   const fWL=wishlist.filter(i=>(wlFilter==='All'||i.category===wlFilter)&&(!search||(i.name||'').toLowerCase().includes(search.toLowerCase())||(i.store||'').toLowerCase().includes(search.toLowerCase()))).sort((a,b)=>(b.rating||3)-(a.rating||3));
   const incomplete=wardrobe.filter(i=>!i.complete||!i.photoUrl);
   const unworn=wardrobe.filter(i=>i.complete&&isOverdue(i.lastWornDate)).sort((a,b)=>{const da=a.lastWornDate?new Date(a.lastWornDate):new Date(0);const db=b.lastWornDate?new Date(b.lastWornDate):new Date(0);return da-db;});
@@ -1263,8 +1249,23 @@ function App(){
             <button className={`chip${subcatFilter==='All'?' active':''}`} onClick={()=>setSubcat('All')}>All {catFilter}</button>
             {CATEGORY_MAP[catFilter].map(s=><button key={s} className={`chip${subcatFilter===s?' active':''}`} onClick={()=>setSubcat(s)}>{s}</button>)}
           </div>}
-          {(()=>{const usedGroups=[...new Set(wardrobe.map(i=>getColourGroup(i.color)).filter(Boolean))];return usedGroups.length>0?<div className="filterrow" style={{paddingTop:2}}><button className={`chip${colourFilter==='All'?' active':''}`} onClick={()=>setColourFilter('All')}>All colours</button>{usedGroups.map(g=><button key={g} className={`chip${colourFilter===g?' active':''}`} onClick={()=>setColourFilter(g)}>{g}</button>)}</div>:null;})()}
-          {incomplete.length>0&&<div className="banner"><span>📋</span><div><div style={{fontSize:12,fontWeight:500,color:'var(--ink)'}}>{incomplete.length} item{incomplete.length>1?'s':''} need details</div><div style={{fontSize:10,color:'var(--muted)',marginTop:1}}>Tap to fill in store, size and colour whenever you have time</div></div></div>}
+          {(()=>{const usedGroups=[...new Set(wardrobe.flatMap(i=>(i.colors||[]).map(getColourGroup)).filter(Boolean))];return usedGroups.length>0?<div className="filterrow" style={{paddingTop:2}}><button className={`chip${colourFilter==='All'?' active':''}`} onClick={()=>setColourFilter('All')}>All colours</button>{usedGroups.map(g=><button key={g} className={`chip${colourFilter===g?' active':''}`} onClick={()=>setColourFilter(g)}>{g}</button>)}</div>:null;})()}
+          {incomplete.length>0&&<>
+            <div className="banner"><span>📋</span><div><div style={{fontSize:12,fontWeight:500,color:'var(--ink)'}}>{incomplete.length} item{incomplete.length>1?'s':''} need details</div><div style={{fontSize:10,color:'var(--muted)',marginTop:1}}>Tap any below to jump straight to it</div></div></div>
+            <div style={{display:'flex',gap:8,overflowX:'auto',padding:'0 16px 8px'}}>
+              {incomplete.map(item=><div key={item.id}
+                onClick={()=>{setSelItem(item);setEditItem(true);}}
+                style={{flexShrink:0,display:'flex',alignItems:'center',gap:8,background:'#fff',borderRadius:10,padding:'7px 10px',border:'1.5px solid var(--border)',cursor:'pointer',minWidth:140,maxWidth:180}}>
+                <div style={{width:32,height:32,borderRadius:6,background:'var(--cream)',overflow:'hidden',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>
+                  {item.photoUrl?<img src={item.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'contain'}}/>:CAT_EMOJI[item.category]||'👗'}
+                </div>
+                <div style={{minWidth:0}}>
+                  <div style={{fontSize:11,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.name||'Untitled'}</div>
+                  <div style={{fontSize:9,color:'var(--accent)',marginTop:1}}>Tap to edit →</div>
+                </div>
+              </div>)}
+            </div>
+          </>}
           {fW.length===0?<div className="empty"><div style={{fontSize:40,marginBottom:10}}>🧺</div><div className="empty-t">Your wardrobe is empty</div><div className="empty-s">Tap + to add your first item.</div></div>
           :<>{fW.some(i=>!i.complete)&&<><div className="seclbl">Needs info</div><div className="grid">{fW.filter(i=>!i.complete).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}}/>)}</div></>}{fW.some(i=>i.complete)&&<><div className="seclbl">{catFilter==='All'?'All items':catFilter} · {fW.filter(i=>i.complete).length}</div><div className="grid">{fW.filter(i=>i.complete).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}}/>)}</div></>}</>}
         </>}
@@ -1290,7 +1291,19 @@ function App(){
         </>}
 
         {tab==='stats'&&<>
-          <div className="stat-grid">{[{n:wardrobe.filter(i=>i.complete).length,l:'Items in wardrobe'},{n:outfits.length,l:'Saved outfits'},{n:wishlist.length,l:'On wishlist'},{n:unworn.length,l:'Unworn 30+ days'}].map(s=><div key={s.l} className="stat-card"><div className="stat-n">{s.n}</div><div className="stat-l">{s.l}</div></div>)}</div>
+          <div className="stat-grid">
+            {[
+              {n:wardrobe.filter(i=>i.complete).length,l:'Items in wardrobe',tab:'wardrobe'},
+              {n:outfits.length,l:'Saved outfits',tab:'outfits'},
+              {n:wishlist.length,l:'On wishlist',tab:'wishlist'},
+              {n:unworn.length,l:'Unworn 30+ days',tab:null},
+            ].map(s=><div key={s.l} className="stat-card"
+              onClick={s.tab?()=>setTab(s.tab):undefined}
+              style={{cursor:s.tab?'pointer':'default'}}>
+              <div className="stat-n">{s.n}</div>
+              <div className="stat-l">{s.l}{s.tab&&<span style={{fontSize:9,color:'var(--muted)',marginLeft:4}}>→</span>}</div>
+            </div>)}
+          </div>
 
           {unworn.length>0&&<><div className="seclbl">Consider rewearing</div><div style={{display:'flex',flexDirection:'column',gap:7,padding:'0 16px 24px'}}>{unworn.slice(0,6).map(i=><div key={i.id} onClick={()=>{setSelItem(i);setEditItem(false);setTab('wardrobe');}} style={{display:'flex',alignItems:'center',gap:10,background:'#fff',borderRadius:12,padding:'10px 13px',border:'1px solid var(--border)',cursor:'pointer'}}><div style={{width:36,height:36,borderRadius:6,background:'#fff',flexShrink:0,overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,border:'1px solid var(--border)'}}>{i.photoUrl?<img src={i.photoUrl} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>:CAT_EMOJI[i.category]}</div><div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{i.name}</div><div style={{fontSize:10,color:'var(--red)',marginTop:1}}>{i.lastWornDate?`Last worn ${formatDate(i.lastWornDate)}`:'Never worn'} · {i.wearCount||0} wears</div></div><span style={{fontSize:11,color:'var(--muted)',textDecoration:'underline',flexShrink:0}}>View →</span></div>)}</div></>}
         </>}
