@@ -1180,8 +1180,10 @@ function App(){
   const [askQ,setAskQ]      = useState('');
   const [askResult,setAR]   = useState(null);
   const [extraBrands,setExtraBrands] = useState([]);
+  const [extraColours,setExtraColours] = useState([]);
   const [selOutfitTag,setSelOutfitTag] = useState(null);
   const addBrand = name => { if(!extraBrands.includes(name)) setExtraBrands(p=>[...p,name]); };
+  const addColour = c => { if(c&&!extraColours.includes(c)) setExtraColours(p=>[...p,c]); };
   const [showAddW,setShowAddW]    = useState(false);
   const [showAddWL,setShowAddWL]  = useState(false);
   const [showAddO,setShowAddO]    = useState(false);
@@ -1224,6 +1226,7 @@ function App(){
     for(const id of outfit.itemIds){const item=wardrobe.find(w=>w.id===id);if(!item)continue;const ui={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};try{await sb.upd('wardrobe',id,{last_worn_date:date,wear_count:ui.wearCount});setW(p=>p.map(x=>x.id===id?ui:x));}catch(e){console.error(e);}}
   }
 
+  const wardrobeColours = [...new Set(wardrobe.map(i=>i.color).filter(Boolean))];
   const fW=wardrobe.filter(i=>{const mc=catFilter==='All'||i.category===catFilter;const sc=subcatFilter==='All'||i.subcategory===subcatFilter;const cc=colourFilter==='All'||getColourGroup(i.color)===colourFilter;const q=search.toLowerCase();return mc&&sc&&cc&&(!q||[i.name,i.brand,i.color,i.store,i.category,i.subcategory].some(s=>(s||'').toLowerCase().includes(q)));});
   const fWL=wishlist.filter(i=>(wlFilter==='All'||i.category===wlFilter)&&(!search||(i.name||'').toLowerCase().includes(search.toLowerCase())||(i.store||'').toLowerCase().includes(search.toLowerCase()))).sort((a,b)=>(b.rating||3)-(a.rating||3));
   const incomplete=wardrobe.filter(i=>!i.complete||!i.photoUrl);
@@ -1328,7 +1331,7 @@ function App(){
   {showAddWL  && <AddWishSheet      onSave={addWish}  onClose={()=>setShowAddWL(false)} stores={stores} onAddStore={addStore}/>}
   {showAddO   && <OutfitBuilderSheet wardrobe={wardrobe} outfit={null} onSave={saveOutfit} onClose={()=>setShowAddO(false)}/>}
   {selItem&&!editItem  && <WardrobeDetailSheet item={selItem} onClose={()=>setSelItem(null)} onEdit={()=>setEditItem(true)} onLogWear={logWear} onDelete={()=>delItem(selItem.id)}/>}
-  {selItem&&editItem   && <EditWardrobeSheet   item={selItem} onSave={saveItem} onCancel={()=>setEditItem(false)} stores={stores} onAddStore={addStore}/>}
+  {selItem&&editItem   && <EditWardrobeSheet   item={selItem} onSave={saveItem} onCancel={()=>setEditItem(false)} stores={stores} onAddStore={addStore} wardrobe={wardrobe} extraBrands={extraBrands} onAddBrand={addBrand} wardrobeColours={wardrobeColours} extraColours={extraColours} onAddColour={addColour}/>}
   {selWish&&!editWish  && <WishDetailSheet item={selWish} similar={findSimilar(selWish,wardrobe)} onClose={()=>setSelWish(null)} onEdit={()=>setEditWish(true)} onDelete={()=>delWish(selWish.id)} onRate={r=>rateWish(selWish.id,r)} onMoveToWardrobe={()=>bought(selWish)}/>}
   {selWish&&editWish   && <EditWishSheet   item={selWish} onSave={saveWish} onCancel={()=>setEditWish(false)} stores={stores} onAddStore={addStore}/>}
   {selOutfit&&!editOutfit && <OutfitDetailSheet outfit={selOutfit} wardrobe={wardrobe} onClose={()=>setSelOutfit(null)} onEdit={()=>setEditOutfit(true)} onDelete={()=>delOutfit(selOutfit.id)} onMarkWorn={logOutfitWear}/>}
