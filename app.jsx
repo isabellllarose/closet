@@ -212,12 +212,6 @@ function getMySizeSummary(storeName, wardrobe) {
   const groups = {};
   items.forEach(item=>{const cat=SIZE_CAT_MAP[item.category]||item.category;if(!cat)return;if(!groups[cat])groups[cat]=new Set();groups[cat].add(item.size);});
   return Object.entries(groups).map(([cat,sizes])=>`${cat}: ${[...sizes].join(', ')}`);
-}(storeName, wardrobe) {
-  const items = wardrobe.filter(w=>w.store===storeName&&w.size);
-  if (!items.length) return null;
-  const groups = {};
-  items.forEach(item=>{const cat=SIZE_CAT_MAP[item.category]||item.category;if(!cat)return;if(!groups[cat])groups[cat]=new Set();groups[cat].add(item.size);});
-  return Object.entries(groups).map(([cat,sizes])=>`${cat}: ${[...sizes].join(', ')}`);
 }
 
 // ── CSS ───────────────────────────────────────────────────────────────────────
