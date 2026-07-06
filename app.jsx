@@ -101,9 +101,9 @@ const findSimilar = (wish,wardrobe) => {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const CATEGORY_MAP = {
-  'Tops':       ['T-shirts','Long sleeve tops','Shirts','Blouses','Knits & Jumpers','Tanks & Singlets','Crop tops','Hoodies & Sweatshirts'],
+  'Tops':       ['T-shirts','Long sleeve tops','Shirts','Blouses','Knits & Jumpers','Tanks & Singlets','Crop tops','Hoodies & Sweatshirts','Bodysuit'],
   'Bottoms':    ['Jeans','Trousers','Shorts','Skirts','Skort','Mini skirts','Midi skirts','Maxi skirts','Flares','Leggings'],
-  'Dresses':    ['Mini','Midi','Maxi','Slip','Shirt dress','Wrap dress'],
+  'Dresses':    ['Mini','Midi','Maxi','Slip','Shirt dress','Wrap dress','Sundress','Romper'],
   'Activewear': ['Sports tops','Sports bras','Sports bottoms','Gym sets','Tights','Bike shorts'],
   'Outerwear':  ['Coats','Jackets','Blazers','Vests','Puffer jackets','Leather jackets','Trench coats'],
   'Shoes':      ['Sneakers','Heels','Boots','Ankle boots','Sandals','Flats','Mules','Loafers'],
@@ -1141,10 +1141,11 @@ function OutfitDetailSheet({outfit,wardrobe,onClose,onEdit,onDelete,onMarkWorn})
 
 // ── Cards ─────────────────────────────────────────────────────────────────────
 function WardrobeCard({item,onClick}){
-  return <div className={`icard${!item.complete?' incomplete':''}`} onClick={onClick}>
+  const needsInfo = !item.photoUrl||!item.name||!item.category;
+  return <div className={`icard${needsInfo?' incomplete':''}`} onClick={onClick}>
     <div className="iphoto">
       {item.photoUrl?<img src={item.photoUrl} alt={item.name}/>:<div className="no-photo"><span style={{fontSize:22,opacity:.3}}>{CAT_EMOJI[item.category]||'👗'}</span><span style={{fontSize:9,color:'var(--muted)',marginTop:2}}>{item.subcategory||item.category}</span></div>}
-      {!item.complete&&<span className="badge-warn">needs info</span>}
+      {needsInfo&&<span className="badge-warn">needs info</span>}
       {item.lastWornDate&&<span className="badge-worn">{daysAgoLabel(item.lastWornDate)}</span>}
     </div>
     <div className="iinfo"><div className="iname">{item.name||'Untitled'}</div><div className="imeta">{item.brand||item.store||item.color||'—'}</div>{item.size&&<div className="isize">{item.sizeLabel||item.size}</div>}</div>
@@ -1237,7 +1238,9 @@ function App(){
   const wardrobeColours = [...new Set(wardrobe.flatMap(i=>i.colors||[]).filter(Boolean))];
   const fW=wardrobe.filter(i=>{const mc=catFilter==='All'||i.category===catFilter;const sc=subcatFilter==='All'||i.subcategory===subcatFilter;const cc=colourFilter==='All'||(i.colors||[]).some(c=>getColourGroup(c)===colourFilter);const q=search.toLowerCase();return mc&&sc&&cc&&(!q||[i.name,i.brand,...(i.colors||[]),i.store,i.category,i.subcategory].some(s=>(s||'').toLowerCase().includes(q)));});
   const fWL=wishlist.filter(i=>(wlFilter==='All'||i.category===wlFilter)&&(!search||(i.name||'').toLowerCase().includes(search.toLowerCase())||(i.store||'').toLowerCase().includes(search.toLowerCase()))).sort((a,b)=>(b.rating||3)-(a.rating||3));
-  const incomplete=wardrobe.filter(i=>!i.complete||!i.photoUrl);
+  // Recompute needsInfo from actual fields rather than trusting stored complete flag
+  // An item needs attention if it's missing a photo, name, or category
+  const incomplete=wardrobe.filter(i=>!i.photoUrl||!i.name||!i.category);
   const unworn=wardrobe.filter(i=>i.complete&&isOverdue(i.lastWornDate)).sort((a,b)=>{const da=a.lastWornDate?new Date(a.lastWornDate):new Date(0);const db=b.lastWornDate?new Date(b.lastWornDate):new Date(0);return da-db;});
 
   const ASK_SUGG=["What size are my Levi's jeans?","What Zara size do I wear?","Do I have anything black?","When did I last wear my coat?","What Cotton On size am I?"];
@@ -1289,7 +1292,7 @@ function App(){
             </div>
           </>}
           {fW.length===0?<div className="empty"><div style={{fontSize:40,marginBottom:10}}>🧺</div><div className="empty-t">Your wardrobe is empty</div><div className="empty-s">Tap + to add your first item.</div></div>
-          :<>{fW.some(i=>!i.complete)&&<><div className="seclbl">Needs info</div><div className="grid">{fW.filter(i=>!i.complete).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}}/>)}</div></>}{fW.some(i=>i.complete)&&<><div className="seclbl">{catFilter==='All'?'All items':catFilter} · {fW.filter(i=>i.complete).length}</div><div className="grid">{fW.filter(i=>i.complete).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}}/>)}</div></>}</>}
+          :<>{fW.some(i=>!i.photoUrl||!i.name||!i.category)&&<><div className="seclbl">Needs info</div><div className="grid">{fW.filter(i=>!i.photoUrl||!i.name||!i.category).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}}/>)}</div></>}{fW.some(i=>i.photoUrl&&i.name&&i.category)&&<><div className="seclbl">{catFilter==='All'?'All items':catFilter} · {fW.filter(i=>i.photoUrl&&i.name&&i.category).length}</div><div className="grid">{fW.filter(i=>i.photoUrl&&i.name&&i.category).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}}/>)}</div></>}</>}
         </>}
 
         {tab==='outfits'&&<>
