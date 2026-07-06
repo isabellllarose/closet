@@ -91,8 +91,8 @@ const toRow  = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subc
 const fromRow= r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,brand:r.brand,store:r.store,color:r.color,size:r.size,sizeLabel:r.size_label,photoUrl:r.photo_url,occasions:r.occasions||[],dateBought:r.date_bought,lastWornDate:r.last_worn_date,wearCount:r.wear_count||0,notes:r.notes,complete:r.complete});
 const toWR   = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,store:i.store||null,brand:i.brand||null,url:i.url||null,price:i.price||null,orig_price:i.origPrice||null,on_sale:!!i.onSale,rating:i.rating||3,photo_urls:i.photoUrls||[],color:i.color||null,notes:i.notes||null,added_date:i.addedDate||today2()});
 const fromWR = r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,store:r.store,brand:r.brand,url:r.url,price:r.price,origPrice:r.orig_price,onSale:r.on_sale,rating:r.rating||3,photoUrls:Array.isArray(r.photo_urls)?r.photo_urls:(r.photo_urls?[r.photo_urls]:[]),color:r.color,notes:r.notes,addedDate:r.added_date});
-const toOR   = o => ({id:o.id,name:o.name,occasion:o.occasion||null,notes:o.notes||null,item_ids:o.itemIds||[],item_positions:o.positions||null,wear_count:o.wearCount||0,last_worn_date:o.lastWornDate||null});
-const fromOR = r => ({id:r.id,name:r.name,occasion:r.occasion,notes:r.notes,itemIds:r.item_ids||[],positions:r.item_positions||null,wearCount:r.wear_count||0,lastWornDate:r.last_worn_date});
+const toOR   = o => ({id:o.id,tags:o.tags||[],notes:o.notes||null,item_ids:o.itemIds||[],item_positions:o.positions||null,wear_count:o.wearCount||0,last_worn_date:o.lastWornDate||null});
+const fromOR = r => ({id:r.id,tags:Array.isArray(r.tags)?r.tags:[],notes:r.notes,itemIds:r.item_ids||[],positions:r.item_positions||null,wearCount:r.wear_count||0,lastWornDate:r.last_worn_date});
 
 const findSimilar = (wish,wardrobe) => {
   if(!wish.category)return[];
@@ -113,10 +113,79 @@ const CATEGORY_MAP = {
   'Lingerie':   ['Bras','Underwear','Sleepwear'],
 };
 const CATS      = ['All',...Object.keys(CATEGORY_MAP)];
-const OCCASIONS = ['Casual','Work','Evening','Event','Gym','Holiday','Beach'];
-const OCC_C     = {Casual:{bg:'#EEF5EC',b:'#89BE7B',t:'#3A7A2B'},Work:{bg:'#EAF0F8',b:'#7BA4D0',t:'#1E5799'},Evening:{bg:'#F3EEF8',b:'#A47BC4',t:'#5D2A8A'},Event:{bg:'#FDF3EC',b:'#E0A86A',t:'#8A4A10'},Gym:{bg:'#EDFAF4',b:'#62C99A',t:'#1A7A52'},Holiday:{bg:'#FEF0F0',b:'#E07B7B',t:'#8A1C1C'},Beach:{bg:'#EAF5F8',b:'#60AACC',t:'#1A5E7A'}};
+
+// Colour groups — maps canonical filter label to recognised shade variations
+const COLOUR_GROUPS = {
+  'Neutrals': ['white','cream','ivory','off-white','off white','ecru','vanilla'],
+  'Black':    ['black','charcoal','onyx','jet'],
+  'Grey':     ['grey','gray','silver','slate','stone','graphite','pewter'],
+  'Brown':    ['brown','tan','camel','chocolate','cocoa','mocha','toffee','cognac','walnut','nude','beige','sand','khaki','biscuit','latte','oat','oatmeal','fawn'],
+  'Red':      ['red','burgundy','wine','maroon','cherry','crimson','rust','scarlet','carmine'],
+  'Pink':     ['pink','blush','rose','dusty rose','mauve','salmon','hot pink','fuchsia','baby pink','powder pink'],
+  'Orange':   ['orange','terracotta','burnt orange','coral','peach','apricot','amber','clay'],
+  'Yellow':   ['yellow','mustard','gold','lemon','butter','canary','golden','straw'],
+  'Green':    ['green','olive','sage','forest','mint','khaki','emerald','bottle green','moss','hunter','pistachio'],
+  'Blue':     ['blue','navy','denim','cobalt','baby blue','sky blue','teal','petrol','indigo','electric blue','midnight','powder blue'],
+  'Purple':   ['purple','violet','lavender','plum','eggplant','lilac','mauve','orchid','grape'],
+  'Multi':    ['multi','multicolour','multicolor','print','pattern','stripe','stripes','check','checked','floral','animal print','leopard','tie-dye','abstract','colour block','color block'],
+};
+// Returns the canonical group for a colour string, or null
+function getColourGroup(colour) {
+  if (!colour) return null;
+  const c = colour.toLowerCase().trim();
+  for (const [group, shades] of Object.entries(COLOUR_GROUPS)) {
+    if (shades.some(s => c.includes(s) || s.includes(c))) return group;
+  }
+  return null;
+}
+// All canonical group names for filter chips
+const COLOUR_FILTER_OPTIONS = ['All', ...Object.keys(COLOUR_GROUPS)];
+
+const OCCASIONS = [
+  // When
+  'Casual','Work','Evening','Dinner','Date night','Going out','Event','Festival','Wedding guest',
+  // Active
+  'Gym','Sport','Swim','Lounge',
+  // Setting
+  'Beach','Travel','Holiday','Outdoor','Weekend',
+  // Weather
+  'Cold weather','Layered','Warm weather','Summer',
+];
+const OCC_C = {
+  // When
+  'Casual':        {bg:'#EEF5EC',b:'#89BE7B',t:'#3A7A2B'},
+  'Work':          {bg:'#EAF0F8',b:'#7BA4D0',t:'#1E5799'},
+  'Evening':       {bg:'#F3EEF8',b:'#A47BC4',t:'#5D2A8A'},
+  'Dinner':        {bg:'#F3EEF8',b:'#9B70C0',t:'#4A2280'},
+  'Date night':    {bg:'#FEF0F5',b:'#D4708A',t:'#8A1C3A'},
+  'Going out':     {bg:'#F3EEF8',b:'#B07848',t:'#6B4020'},
+  'Event':         {bg:'#FDF3EC',b:'#E0A86A',t:'#8A4A10'},
+  'Festival':      {bg:'#FFF3E0',b:'#FFB347',t:'#8A5A00'},
+  'Wedding guest': {bg:'#FEF0F5',b:'#C4849A',t:'#7A2040'},
+  // Active
+  'Gym':           {bg:'#EDFAF4',b:'#62C99A',t:'#1A7A52'},
+  'Sport':         {bg:'#EDFAF4',b:'#4AB888',t:'#0A6A42'},
+  'Swim':          {bg:'#EAF5F8',b:'#60AACC',t:'#1A5E7A'},
+  'Lounge':        {bg:'#F5F0E8',b:'#B09878',t:'#6A5838'},
+  // Setting
+  'Beach':         {bg:'#EAF5F8',b:'#60AACC',t:'#1A5E7A'},
+  'Travel':        {bg:'#EAF0F8',b:'#8AA4D0',t:'#2E4A79'},
+  'Holiday':       {bg:'#FEF0F0',b:'#E07B7B',t:'#8A1C1C'},
+  'Outdoor':       {bg:'#EEF5EC',b:'#6A9E5B',t:'#2A5A1B'},
+  'Weekend':       {bg:'#EEF5EC',b:'#89BE7B',t:'#3A7A2B'},
+  // Weather
+  'Cold weather':  {bg:'#EAF0F8',b:'#7BA4D0',t:'#1E5799'},
+  'Layered':       {bg:'#F0EEF8',b:'#8A7BC4',t:'#3A2A8A'},
+  'Warm weather':  {bg:'#FFF3E0',b:'#FFB347',t:'#8A5A00'},
+  'Summer':        {bg:'#FEF0F0',b:'#FF8C69',t:'#8A3A20'},
+};
 const CAT_EMOJI = {Tops:'👕',Bottoms:'👖',Dresses:'👗',Activewear:'🏃',Outerwear:'🧥',Shoes:'👟',Bags:'👜',Accessories:'💍',Swimwear:'👙',Lingerie:'🩱'};
 const NEED_LBL  = ['','Nice to have','Want it','Really want it','Need it','Genuinely need'];
+const OUTFIT_TAGS = [
+  'Casual','Going out','Dinner','Date night','Event','Festival','Work','Beach','Gym',
+  'Cold','Layered','Warm','Summer',
+  'Minimal','Dressed up','Relaxed','Elevated basics',
+];
 const NAV       = [{key:'wardrobe',label:'Wardrobe'},{key:'outfits',label:'Outfits'},{key:'wishlist',label:'Wishlist'},{key:'stats',label:'Stats'},{key:'sizes',label:'Sizes'},{key:'ask',label:'Ask'}];
 const SIZE_CAT_MAP = {'Tops':'Tops','Bottoms':'Bottoms','Dresses':'Dresses','Activewear':'Activewear','Outerwear':'Outerwear','Shoes':'Shoes'};
 
@@ -267,7 +336,8 @@ const CSS = `
   .sheet-actions{display:flex;gap:8px;padding:12px 20px calc(12px + var(--safe-b));border-top:1px solid var(--border);flex-shrink:0;}
   @media(min-width:768px){.sheet-actions{padding-bottom:16px;}}
   .f-lbl{font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;display:block;}
-  .f-inp{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'Jost',sans-serif;background:#fff;color:var(--ink);outline:none;transition:border-color .15s;}
+  .f-inp{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:16px;font-family:'Jost',sans-serif;background:#fff;color:var(--ink);outline:none;transition:border-color .15s;}
+  @media(min-width:768px){.f-inp{font-size:13px;}}
   .f-inp:focus{border-color:var(--ink);}
   .f-sel{-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238A837A'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
   .detail-row{display:flex;align-items:baseline;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);gap:12px;}
@@ -657,6 +727,91 @@ function StarDisplay({rating,size=12,onClick}){return <div style={{display:'flex
 function Toggle({on,onToggle}){return <div onClick={e=>{e.stopPropagation();onToggle();}} style={{width:44,height:26,background:on?'#5A8A60':'#E0D9CF',borderRadius:13,position:'relative',cursor:'pointer',transition:'background .2s',flexShrink:0}}><div style={{position:'absolute',top:3,left:3,width:20,height:20,background:'#fff',borderRadius:'50%',transition:'transform .2s',boxShadow:'0 1px 3px rgba(0,0,0,.2)',transform:on?'translateX(18px)':'none'}}/></div>;}
 function OccChips({selected,onChange}){return <div style={{display:'flex',flexWrap:'wrap',gap:5,marginTop:4}}>{OCCASIONS.map(o=>{const c=OCC_C[o]||{bg:'#eee',b:'#aaa',t:'#333'};const sel=selected.includes(o);return <div key={o} onClick={()=>onChange(sel?selected.filter(x=>x!==o):[...selected,o])} style={{padding:'4px 10px',borderRadius:20,fontSize:11,border:`1.5px solid ${c.b}`,cursor:'pointer',background:sel?c.b:c.bg,color:sel?'#fff':c.t,fontFamily:"'Jost',sans-serif"}}>{o}</div>})}</div>;}
 function StorePicker({value,onChange,stores,onAddStore}){const [open,setOpen]=useState(false);const [q,setQ]=useState(value||'');const ref=useRef();useEffect(()=>setQ(value||''),[value]);const filtered=stores.filter(s=>s.name.toLowerCase().includes(q.toLowerCase()));const exact=stores.some(s=>s.name.toLowerCase()===q.toLowerCase());function sel(name){onChange(name);setQ(name);setOpen(false);}useEffect(()=>{function h(e){if(ref.current&&!ref.current.contains(e.target))setOpen(false);}document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h);},[]);return <div className="store-picker" ref={ref}><input className="f-inp" value={q} placeholder="Search or type store name…" onChange={e=>{setQ(e.target.value);onChange(e.target.value);setOpen(true);}} onFocus={()=>setOpen(true)}/>{open&&<div className="store-options">{filtered.slice(0,8).map(s=><div key={s.id} className="store-opt" onClick={()=>sel(s.name)}>{s.name}</div>)}{q&&!exact&&<div className="store-opt add-new" onClick={()=>{onAddStore(q);sel(q);}}>+ Add "{q}" to stores</div>}</div>}</div>;}
+function BrandPicker({value, onChange, wardrobe, extraBrands, onAddBrand}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState(value||'');
+  const ref = useRef();
+  // Collect brands from wardrobe + extras, deduplicated, sorted by frequency
+  const brandCounts = {};
+  wardrobe.forEach(i => { if(i.brand) brandCounts[i.brand] = (brandCounts[i.brand]||0) + 1; });
+  extraBrands.forEach(b => { if(!brandCounts[b]) brandCounts[b] = 0; });
+  const allBrands = Object.entries(brandCounts).sort((a,b)=>b[1]-a[1]).map(([b])=>b);
+  const filtered = allBrands.filter(b => b.toLowerCase().includes(q.toLowerCase()));
+  const exact = allBrands.some(b => b.toLowerCase() === q.toLowerCase());
+  useEffect(()=>setQ(value||''),[value]);
+  function sel(name){ onChange(name); setQ(name); setOpen(false); }
+  useEffect(()=>{
+    function h(e){ if(ref.current&&!ref.current.contains(e.target))setOpen(false); }
+    document.addEventListener('mousedown',h);
+    return()=>document.removeEventListener('mousedown',h);
+  },[]);
+  return <div className="store-picker" ref={ref}>
+    <input className="f-inp" value={q} placeholder="Search or type brand name…"
+      onChange={e=>{setQ(e.target.value);onChange(e.target.value);setOpen(true);}}
+      onFocus={()=>setOpen(true)}/>
+    {open&&<div className="store-options">
+      {filtered.slice(0,8).map(b=><div key={b} className="store-opt" onClick={()=>sel(b)}>
+        {b} {brandCounts[b]>0&&<span style={{fontSize:10,color:'var(--muted)',marginLeft:4}}>×{brandCounts[b]}</span>}
+      </div>)}
+      {q&&!exact&&<div className="store-opt add-new" onClick={()=>{onAddBrand(q);sel(q);}}>+ Add "{q}"</div>}
+    </div>}
+  </div>;
+}
+
+// ── ColourPicker ──────────────────────────────────────────────────────────────
+function ColourPicker({value, onChange, wardrobeColours, extraColours, onAddColour}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState(value||'');
+  const ref = useRef();
+  // Collect all colours from wardrobe + extras, deduplicated
+  const usedColours = [...new Set([
+    ...wardrobeColours.filter(Boolean).map(c=>c.trim()),
+    ...extraColours.filter(Boolean),
+  ])].sort();
+  const filtered = q
+    ? usedColours.filter(c => c.toLowerCase().includes(q.toLowerCase()))
+    : usedColours;
+  const exact = usedColours.some(c => c.toLowerCase() === q.toLowerCase());
+  useEffect(()=>setQ(value||''),[value]);
+  function sel(c){ onChange(c); setQ(c); setOpen(false); }
+  useEffect(()=>{
+    function h(e){ if(ref.current&&!ref.current.contains(e.target))setOpen(false); }
+    document.addEventListener('mousedown',h);
+    return()=>document.removeEventListener('mousedown',h);
+  },[]);
+  // Colour swatch dot
+  function SwatchDot({colour}){
+    const group = getColourGroup(colour);
+    const swatchMap = {
+      Neutrals:'#F5F0E8',Black:'#1A1714',Grey:'#8A8A8A',Brown:'#8B5E3C',
+      Red:'#C4623A',Pink:'#E8A0B0',Orange:'#E8824A',Yellow:'#D4A840',
+      Green:'#5A8A60',Blue:'#3A6A9A',Purple:'#7A5A9A',Multi:'linear-gradient(135deg,#E8824A,#3A6A9A)',
+    };
+    const bg = swatchMap[group] || '#E0D9CF';
+    return <span style={{width:10,height:10,borderRadius:'50%',flexShrink:0,display:'inline-block',
+      background:bg,border:'1px solid rgba(0,0,0,.12)',marginRight:5}}/>;
+  }
+  return <div className="store-picker" ref={ref}>
+    <input className="f-inp" value={q} placeholder="e.g. Camel, Navy, Dusty rose…"
+      onChange={e=>{setQ(e.target.value);onChange(e.target.value);setOpen(true);}}
+      onFocus={()=>setOpen(true)}/>
+    {open&&<div className="store-options">
+      {filtered.slice(0,10).map(c=><div key={c} className="store-opt"
+        style={{display:'flex',alignItems:'center'}}
+        onClick={()=>sel(c)}>
+        <SwatchDot colour={c}/>{c}
+        {getColourGroup(c)&&<span style={{fontSize:10,color:'var(--muted)',marginLeft:'auto',paddingLeft:8}}>{getColourGroup(c)}</span>}
+      </div>)}
+      {q&&!exact&&<div className="store-opt add-new"
+        style={{display:'flex',alignItems:'center'}}
+        onClick={()=>{onAddColour(q);sel(q);}}>
+        <SwatchDot colour={q}/>+ Add "{q}"
+        {getColourGroup(q)&&<span style={{fontSize:10,color:'var(--muted)',marginLeft:'auto',paddingLeft:8}}>→ {getColourGroup(q)}</span>}
+      </div>}
+    </div>}
+  </div>;
+}
+
 function Sheet({title,onClose,children,actions}){
   const sheetRef = useRef();
   const startY = useRef(null);
@@ -686,7 +841,7 @@ function FRow({children}){return <div style={{display:'flex',gap:8}}>{children}<
 function DetailRow({label,value}){if(!value&&value!==0)return null;return <div className="detail-row"><span style={{fontSize:11,color:'#8A837A',flexShrink:0}}>{label}</span><span style={{fontSize:12,fontWeight:500,color:'#1A1714',textAlign:'right'}}>{value}</span></div>;}
 
 // ── Wardrobe fields ───────────────────────────────────────────────────────────
-function WardrobeFields({d,up,stores,onAddStore}){
+function WardrobeFields({d,up,stores,onAddStore,wardrobe=[],extraBrands=[],onAddBrand=()=>{},wardrobeColours=[],extraColours=[],onAddColour=()=>{}}){
   const subcats=CATEGORY_MAP[d.category]||[];
   return <>
     <div style={{display:'flex',gap:12,marginBottom:14}}>
@@ -697,7 +852,7 @@ function WardrobeFields({d,up,stores,onAddStore}){
         {subcats.length>0&&<FGrp label="Type" style={{marginBottom:0}}><FSel value={d.subcategory||''} onChange={e=>up({subcategory:e.target.value})} placeholder="Select type…" options={subcats}/></FGrp>}
       </div>
     </div>
-    <FRow><FGrp label="Brand" style={{flex:1}}><FInp value={d.brand} placeholder="e.g. Levi's" onChange={e=>up({brand:e.target.value})}/></FGrp><FGrp label="Colour" style={{flex:1}}><FInp value={d.color} placeholder="Navy" onChange={e=>up({color:e.target.value})}/></FGrp></FRow>
+    <FRow><FGrp label="Brand" style={{flex:1}}><BrandPicker value={d.brand||''} onChange={v=>up({brand:v})} wardrobe={wardrobe} extraBrands={extraBrands} onAddBrand={onAddBrand}/></FGrp><FGrp label="Colour" style={{flex:1}}><ColourPicker value={d.color||''} onChange={v=>up({color:v})} wardrobeColours={wardrobeColours} extraColours={extraColours} onAddColour={onAddColour}/></FGrp></FRow>
     <FRow><FGrp label="Size" style={{flex:1}}><FInp value={d.size} placeholder="S / 10 / 27" onChange={e=>up({size:e.target.value,sizeLabel:e.target.value})}/></FGrp><FGrp label="Store" style={{flex:1}}><StorePicker value={d.store||''} onChange={v=>up({store:v})} stores={stores} onAddStore={onAddStore}/></FGrp></FRow>
     <DateField label="Date bought" value={d.dateBought} onChange={v=>up({dateBought:v})}/>
     <FGrp label="Notes"><FInp value={d.notes} placeholder="Fit, how it runs, where you wear it…" onChange={e=>up({notes:e.target.value})}/></FGrp>
@@ -705,19 +860,19 @@ function WardrobeFields({d,up,stores,onAddStore}){
   </>;
 }
 
-function AddWardrobeSheet({onSave,onClose,stores,onAddStore}){
+function AddWardrobeSheet({onSave,onClose,stores,onAddStore,wardrobe=[],extraBrands=[],onAddBrand=()=>{},wardrobeColours=[],extraColours=[],onAddColour=()=>{}}){
   const [d,setD]=useState({name:'',category:'Tops',subcategory:'',brand:'',store:'',color:'',size:'',sizeLabel:'',photoUrl:null,occasions:[],dateBought:null,notes:''});
   const [saving,setSaving]=useState(false);const up=v=>setD(p=>({...p,...v}));
   async function save(photoOnly=false){setSaving(true);await onSave({...d,id:uid(),complete:!photoOnly&&!!(d.name&&d.category),sizeLabel:d.sizeLabel||d.size,name:d.name||'New item',lastWornDate:null,wearCount:0});setSaving(false);}
   return <Sheet title="Add item" onClose={onClose} actions={<><BtnO onClick={onClose}>Cancel</BtnO><BtnF onClick={()=>save()} loading={saving}>{d.name?'Add to wardrobe':'Save anyway'}</BtnF></>}>
-    <WardrobeFields d={d} up={up} stores={stores} onAddStore={onAddStore}/>
+    <WardrobeFields d={d} up={up} stores={stores} onAddStore={onAddStore} wardrobe={wardrobe} extraBrands={extraBrands} onAddBrand={onAddBrand} wardrobeColours={wardrobeColours} extraColours={extraColours} onAddColour={onAddColour}/>
     {d.photoUrl&&!d.name&&<div onClick={()=>save(true)} style={{fontSize:11,color:'var(--muted)',textDecoration:'underline',cursor:'pointer',textAlign:'center',padding:'8px 0'}}>Save photo only — I'll fill details in later</div>}
   </Sheet>;
 }
-function EditWardrobeSheet({item,onSave,onCancel,stores,onAddStore}){
+function EditWardrobeSheet({item,onSave,onCancel,stores,onAddStore,wardrobe=[],extraBrands=[],onAddBrand=()=>{},wardrobeColours=[],extraColours=[],onAddColour=()=>{}}){
   const [f,setF]=useState({...item});const [saving,setSaving]=useState(false);const up=v=>setF(p=>({...p,...v}));
   return <Sheet title="Edit item" onClose={onCancel} actions={<><BtnO onClick={onCancel}>Cancel</BtnO><BtnF onClick={async()=>{setSaving(true);await onSave(f);setSaving(false);}} loading={saving} color="#B07848">Save changes</BtnF></>}>
-    <WardrobeFields d={f} up={up} stores={stores} onAddStore={onAddStore}/>
+    <WardrobeFields d={f} up={up} stores={stores} onAddStore={onAddStore} wardrobe={wardrobe} extraBrands={extraBrands} onAddBrand={onAddBrand} wardrobeColours={wardrobeColours} extraColours={extraColours} onAddColour={onAddColour}/>
     <FRow><FGrp label="Total wears" style={{flex:1,marginTop:4}}><FInp value={f.wearCount} type="number" onChange={e=>up({wearCount:parseInt(e.target.value)||0})}/></FGrp><div style={{flex:1,marginTop:4}}><DateField label="Last worn" value={f.lastWornDate} onChange={v=>up({lastWornDate:v})}/></div></FRow>
   </Sheet>;
 }
@@ -806,56 +961,65 @@ function OutfitThumbnail({items}){
 
 function FreeformCanvas({items,positions,onPositionsChange}){
   const canvasRef=useRef();
-  const dragging=useRef(null);
-  const pinch=useRef(null);
-  const [pos,setPos]=useState(()=>{const p={};items.forEach((item,i)=>{p[item.id]=positions?.[item.id]||{x:20+(i%3)*100,y:20+Math.floor(i/3)*130,scale:1};});return p;});
+  const stateRef=useRef({dragging:null,pinch:null});
+  const [pos,setPos]=useState(()=>{
+    const p={};
+    items.forEach((item,i)=>{p[item.id]=positions?.[item.id]||{x:20+(i%3)*100,y:20+Math.floor(i/3)*130,scale:1};});
+    return p;
+  });
+  const posRef=useRef(pos);
+  posRef.current=pos;
 
-  function getXY(e){const rect=canvasRef.current.getBoundingClientRect();if(e.touches)return{x:e.touches[0].clientX-rect.left,y:e.touches[0].clientY-rect.top};return{x:e.clientX-rect.left,y:e.clientY-rect.top};}
-  function pinchDist(e){const[a,b]=e.touches;return Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY);}
+  function safe(fn){ try{ fn(); }catch(e){ console.error('canvas:',e); } }
 
-  function onStart(e,id){
+  function onStart(e,id){ safe(()=>{
     e.preventDefault();
-    if(e.touches&&e.touches.length===2){
-      // pinch start
-      pinch.current={id,startDist:pinchDist(e),startScale:pos[id]?.scale||1};
-      dragging.current=null;
+    if(e.touches&&e.touches.length>=2){
+      const[a,b]=e.touches;
+      stateRef.current={dragging:null,pinch:{id,startDist:Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY),startScale:posRef.current[id]?.scale||1}};
       return;
     }
-    const{x,y}=getXY(e);
-    dragging.current={id,ox:x-(pos[id]?.x||0),oy:y-(pos[id]?.y||0)};
-  }
-  function onMove(e){
+    const rect=canvasRef.current.getBoundingClientRect();
+    const cx=e.touches?e.touches[0].clientX:e.clientX;
+    const cy=e.touches?e.touches[0].clientY:e.clientY;
+    stateRef.current={dragging:{id,ox:(cx-rect.left)-(posRef.current[id]?.x||0),oy:(cy-rect.top)-(posRef.current[id]?.y||0)},pinch:null};
+  });}
+
+  function onMove(e){ safe(()=>{
     e.preventDefault();
-    if(e.touches&&e.touches.length===2&&pinch.current){
-      const dist=pinchDist(e);
-      const scale=Math.max(0.4,Math.min(2.5,pinch.current.startScale*(dist/pinch.current.startDist)));
-      setPos(p=>({...p,[pinch.current.id]:{...(p[pinch.current.id]||{}),scale}}));
+    const{dragging,pinch}=stateRef.current;
+    if(e.touches&&e.touches.length>=2&&pinch){
+      const[a,b]=e.touches;
+      const dist=Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY);
+      const scale=Math.max(0.4,Math.min(2.5,pinch.startScale*(dist/pinch.startDist)));
+      setPos(p=>{const n={...p,[pinch.id]:{...(p[pinch.id]||{}),scale}};posRef.current=n;return n;});
       return;
     }
-    if(!dragging.current)return;
-    const{x,y}=getXY(e);
-    const c=canvasRef.current;
-    const nx=Math.max(0,Math.min(c.clientWidth-88,x-dragging.current.ox));
-    const ny=Math.max(0,Math.min(c.clientHeight-108,y-dragging.current.oy));
-    setPos(p=>({...p,[dragging.current.id]:{...(p[dragging.current.id]||{}),x:nx,y:ny}}));
-  }
-  function onEnd(){
-    if(dragging.current||pinch.current){onPositionsChange(pos);}
-    dragging.current=null;pinch.current=null;
-  }
+    if(!dragging||!canvasRef.current)return;
+    const rect=canvasRef.current.getBoundingClientRect();
+    const cx=e.touches?e.touches[0].clientX:e.clientX;
+    const cy=e.touches?e.touches[0].clientY:e.clientY;
+    const nx=Math.max(0,Math.min(rect.width-88,cx-rect.left-dragging.ox));
+    const ny=Math.max(0,Math.min(rect.height-108,cy-rect.top-dragging.oy));
+    setPos(p=>{const n={...p,[dragging.id]:{...(p[dragging.id]||{}),x:nx,y:ny}};posRef.current=n;return n;});
+  });}
 
-  const W=88,H=108;
+  function onEnd(){ safe(()=>{
+    if(stateRef.current.dragging||stateRef.current.pinch) onPositionsChange(posRef.current);
+    stateRef.current={dragging:null,pinch:null};
+  });}
+
   return <div ref={canvasRef} className="freeform-canvas"
     onMouseMove={onMove} onMouseUp={onEnd} onMouseLeave={onEnd}
     onTouchMove={onMove} onTouchEnd={onEnd}>
     {items.map(item=>{
       const p=pos[item.id]||{x:0,y:0,scale:1};
       const sc=p.scale||1;
+      const W=Math.round(88*sc), H=Math.round(108*sc);
       return <div key={item.id} className="freeform-item"
-        style={{left:p.x||0,top:p.y||0,width:W*sc,height:H*sc,transition:'box-shadow .15s'}}
+        style={{left:Math.round(p.x||0),top:Math.round(p.y||0),width:W,height:H}}
         onMouseDown={e=>onStart(e,item.id)} onTouchStart={e=>onStart(e,item.id)}>
-        {item.photoUrl?<img src={item.photoUrl} alt={item.name} style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<span style={{fontSize:28*sc,opacity:.35}}>{CAT_EMOJI[item.category]||'👗'}</span>}
-        <div className="fi-label">{item.name?.split(' ')[0]}</div>
+        {item.photoUrl?<img src={item.photoUrl} alt={item.name} style={{width:'100%',height:'100%',objectFit:'contain',pointerEvents:'none'}} draggable={false}/>:<span style={{fontSize:Math.round(28*sc),opacity:.35,pointerEvents:'none'}}>{CAT_EMOJI[item.category]||'👗'}</span>}
       </div>;
     })}
   </div>;
@@ -866,25 +1030,71 @@ function ItemPickerSheet({wardrobe,currentId,slotLabel,onPick,onClose}){
   const filtered=wardrobe.filter(i=>{const mc=cat==='All'||i.category===cat;const ms=!q||[i.name,i.brand,i.color].some(s=>(s||'').toLowerCase().includes(q.toLowerCase()));return mc&&ms;});
   return <Sheet title={`Pick ${slotLabel}`} onClose={onClose}>
     <div style={{marginBottom:10}}><input className="f-inp" placeholder="Search…" value={q} onChange={e=>setQ(e.target.value)}/></div>
-    <div className="filterrow" style={{padding:'0 0 8px'}}>{CATS.map(c=><button key={c} className={`chip${cat===c?' active':''}`} onClick={()=>{setCat(c);setSubcat('All');}} style={{fontSize:11,padding:'4px 10px'}}>{c}</button>)}</div>
+    <div className="filterrow" style={{padding:'0 0 8px'}}>{CATS.map(c=><button key={c} className={`chip${cat===c?' active':''}`} onClick={()=>{setCat(c);setSubcat('All');setColourFilter('All');}} style={{fontSize:11,padding:'4px 10px'}}>{c}</button>)}</div>
     <div className="picker-grid">{filtered.map(item=><div key={item.id} className={`picker-item${currentId===item.id?' sel':''}`} onClick={()=>onPick(item)}><div className="picker-thumb">{item.photoUrl?<img src={item.photoUrl} alt={item.name}/>:<span style={{fontSize:22,opacity:.3}}>{CAT_EMOJI[item.category]||'👗'}</span>}</div><div className="picker-name">{item.name}</div></div>)}{filtered.length===0&&<div style={{gridColumn:'1/-1',textAlign:'center',padding:'24px 0',fontSize:12,color:'var(--muted)'}}>No items found</div>}</div>
   </Sheet>;
 }
 
 function OutfitBuilderSheet({wardrobe,outfit,onSave,onClose}){
   const isNew=!outfit;
-  const [name,setName]=useState(outfit?.name||'');const [occasion,setOcc]=useState(outfit?.occasion||'');const [notes,setNotes]=useState(outfit?.notes||'');
-  const [slots,setSlots]=useState(()=>{const s={Top:null,Bottom:null,Shoes:null,Bag:null,Outer:null};if(outfit?.itemIds){outfit.itemIds.forEach(id=>{const item=wardrobe.find(w=>w.id===id);if(!item)return;const cat=item.category;if(cat==='Tops'||cat==='Dresses'||cat==='Activewear')s.Top=s.Top||item;else if(cat==='Bottoms')s.Bottom=item;else if(cat==='Shoes')s.Shoes=item;else if(cat==='Bags'||cat==='Accessories')s.Bag=item;else if(cat==='Outerwear')s.Outer=item;});}return s;});
-  const [mode,setMode]=useState('structured');const [positions,setPositions]=useState(outfit?.positions||null);const [picker,setPicker]=useState(null);const [saving,setSaving]=useState(false);
-  const slotItems=Object.values(slots).filter(Boolean);const itemIds=slotItems.map(i=>i.id);
-  async function save(){setSaving(true);await onSave({id:outfit?.id||uid(),name:name||'My outfit',occasion,notes,itemIds,positions:mode==='freeform'?positions:null,wearCount:outfit?.wearCount||0,lastWornDate:outfit?.lastWornDate||null});setSaving(false);}
+  const [tags,setTags]=useState(outfit?.tags||[]);
+  const [notes,setNotes]=useState(outfit?.notes||'');
+  const [customTag,setCustomTag]=useState('');
+  const [slots,setSlots]=useState(()=>{
+    const s={Top:null,Bottom:null,Shoes:null,Bag:null,Outer:null};
+    if(outfit?.itemIds){outfit.itemIds.forEach(id=>{const item=wardrobe.find(w=>w.id===id);if(!item)return;const cat=item.category;if(cat==='Tops'||cat==='Dresses'||cat==='Activewear')s.Top=s.Top||item;else if(cat==='Bottoms')s.Bottom=item;else if(cat==='Shoes')s.Shoes=item;else if(cat==='Bags'||cat==='Accessories')s.Bag=item;else if(cat==='Outerwear')s.Outer=item;});}
+    return s;
+  });
+  const [mode,setMode]=useState('structured');
+  const [positions,setPositions]=useState(outfit?.positions||null);
+  const [picker,setPicker]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const slotItems=Object.values(slots).filter(Boolean);
+  const itemIds=slotItems.map(i=>i.id);
+  function toggleTag(t){ setTags(p=>p.includes(t)?p.filter(x=>x!==t):[...p,t]); }
+  function addCustomTag(){ const t=customTag.trim(); if(t&&!tags.includes(t)){setTags(p=>[...p,t]);setCustomTag('');} }
+  async function save(){
+    setSaving(true);
+    await onSave({id:outfit?.id||uid(),tags,notes,itemIds,positions:mode==='freeform'?positions:null,wearCount:outfit?.wearCount||0,lastWornDate:outfit?.lastWornDate||null});
+    setSaving(false);
+  }
   const SC=[{key:'Top',label:'Top / Dress'},{key:'Outer',label:'Outer layer'},{key:'Bottom',label:'Bottom'},{key:'Shoes',label:'Shoes'},{key:'Bag',label:'Bag / Acc.'}];
   return <Sheet title={isNew?'New outfit':'Edit outfit'} onClose={onClose} actions={<><BtnO onClick={onClose}>Cancel</BtnO><BtnF onClick={save} loading={saving} color="#B07848">{isNew?'Save outfit':'Save changes'}</BtnF></>}>
-    <FGrp label="Outfit name"><FInp value={name} placeholder="e.g. Casual Friday" onChange={e=>setName(e.target.value)}/></FGrp>
-    <FGrp label="Occasion"><FSel value={occasion} onChange={e=>setOcc(e.target.value)} placeholder="Any occasion" options={OCCASIONS}/></FGrp>
-    <div className="mode-toggle"><button className={`mode-btn${mode==='structured'?' active':''}`} onClick={()=>setMode('structured')}>Structured</button><button className={`mode-btn${mode==='freeform'?' active':''}`} onClick={()=>setMode('freeform')}>Freeform drag</button></div>
-    {mode==='structured'?<div className="builder-stage">{SC.map(({key,label})=>{const item=slots[key];return <div key={key} className="slot-row"><span className="slot-label">{label}</span>{item?<div className="slot-item"><div className="slot-thumb">{item.photoUrl?<img src={item.photoUrl} alt={item.name}/>:<span style={{fontSize:18,opacity:.4}}>{CAT_EMOJI[item.category]||'👗'}</span>}</div><span className="slot-name" onClick={()=>setPicker({slot:key,label})}>{item.name}</span><button className="slot-remove" onClick={()=>setSlots(p=>({...p,[key]:null}))}>✕</button></div>:<div className="slot-item empty" onClick={()=>setPicker({slot:key,label})}>+ Add {label.toLowerCase()}</div>}</div>;})}</div>
-    :<div className="builder-stage"><div style={{fontSize:11,color:'var(--muted)',marginBottom:8,textAlign:'center'}}>Drag items to arrange your flat-lay</div>{slotItems.length===0?<div style={{textAlign:'center',padding:'32px 0',color:'var(--muted)',fontSize:12}}>Add items in Structured mode first</div>:<FreeformCanvas items={slotItems} positions={positions} onPositionsChange={setPositions}/>}</div>}
+    <FGrp label="Tags">
+      <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:8}}>
+        {OUTFIT_TAGS.map(t=><div key={t} onClick={()=>toggleTag(t)}
+          style={{padding:'5px 11px',borderRadius:20,fontSize:12,cursor:'pointer',fontFamily:"'Jost',sans-serif",
+            border:'1.5px solid',borderColor:tags.includes(t)?'var(--ink)':'var(--border)',
+            background:tags.includes(t)?'var(--ink)':'#fff',color:tags.includes(t)?'#fff':'var(--muted)'}}>
+          {t}</div>)}
+      </div>
+      {tags.filter(t=>!OUTFIT_TAGS.includes(t)).map(t=><div key={t} style={{display:'inline-flex',alignItems:'center',gap:4,margin:'0 4px 4px 0',padding:'4px 10px',borderRadius:20,fontSize:11,background:'var(--accent-bg)',border:'1.5px solid var(--accent)',color:'var(--accent)'}}>
+        {t}<span onClick={()=>toggleTag(t)} style={{cursor:'pointer',fontSize:12,opacity:.7}}>✕</span>
+      </div>)}
+      <div style={{display:'flex',gap:6,marginTop:6}}>
+        <input className="f-inp" value={customTag} placeholder="Add your own tag…"
+          onChange={e=>setCustomTag(e.target.value)}
+          onKeyDown={e=>e.key==='Enter'&&addCustomTag()}
+          style={{flex:1}}/>
+        <button onClick={addCustomTag} style={{padding:'10px 14px',background:'var(--ink)',color:'#fff',border:'none',borderRadius:10,fontSize:12,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Add</button>
+      </div>
+    </FGrp>
+    <div className="mode-toggle">
+      <button className={`mode-btn${mode==='structured'?' active':''}`} onClick={()=>setMode('structured')}>Structured</button>
+      <button className={`mode-btn${mode==='freeform'?' active':''}`} onClick={()=>setMode('freeform')}>Freeform drag</button>
+    </div>
+    {mode==='structured'?<div className="builder-stage">
+      {SC.map(({key,label})=>{const item=slots[key];return <div key={key} className="slot-row">
+        <span className="slot-label">{label}</span>
+        {item?<div className="slot-item"><div className="slot-thumb">{item.photoUrl?<img src={item.photoUrl} alt={item.name}/>:<span style={{fontSize:18,opacity:.4}}>{CAT_EMOJI[item.category]||'👗'}</span>}</div><span className="slot-name" onClick={()=>setPicker({slot:key,label})}>{item.name}</span><button className="slot-remove" onClick={()=>setSlots(p=>({...p,[key]:null}))}>✕</button></div>
+        :<div className="slot-item empty" onClick={()=>setPicker({slot:key,label})}>+ Add {label.toLowerCase()}</div>}
+      </div>;})}
+    </div>
+    :<div className="builder-stage">
+      <div style={{fontSize:11,color:'var(--muted)',marginBottom:8,textAlign:'center'}}>Drag to move · Pinch to resize</div>
+      {slotItems.length===0?<div style={{textAlign:'center',padding:'32px 0',color:'var(--muted)',fontSize:12}}>Add items in Structured mode first</div>
+      :<FreeformCanvas items={slotItems} positions={positions} onPositionsChange={setPositions}/>}
+    </div>}
     <FGrp label="Notes" style={{marginTop:4}}><FInp value={notes} placeholder="What you love about this combo…" onChange={e=>setNotes(e.target.value)}/></FGrp>
     {picker&&<ItemPickerSheet wardrobe={wardrobe} currentId={slots[picker.slot]?.id} slotLabel={picker.label} onPick={item=>{setSlots(p=>({...p,[picker.slot]:item}));setPicker(null);}} onClose={()=>setPicker(null)}/>}
   </Sheet>;
@@ -903,7 +1113,10 @@ function OutfitDetailSheet({outfit,wardrobe,onClose,onEdit,onDelete,onMarkWorn})
       {freeform&&outfit.positions?<FreeformCanvas items={items} positions={outfit.positions} onPositionsChange={()=>{}}/>
       :<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>{items.map(item=><div key={item.id} style={{borderRadius:10,overflow:'hidden',background:'#fff',aspectRatio:'1/1',display:'flex',alignItems:'center',justifyContent:'center'}}>{item.photoUrl?<img src={item.photoUrl} alt={item.name} style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>:<span style={{fontSize:28,opacity:.3}}>{CAT_EMOJI[item.category]||'👗'}</span>}</div>)}</div>}
     </div>
-    <DetailRow label="Occasion" value={outfit.occasion}/><DetailRow label="Last worn" value={outfit.lastWornDate?`${formatDate(outfit.lastWornDate)} (${daysAgoLabel(outfit.lastWornDate)})`:'Never worn'}/><DetailRow label="Times worn" value={outfit.wearCount||0}/><DetailRow label="Notes" value={outfit.notes}/>
+    {(outfit.tags||[]).length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:12}}>{(outfit.tags||[]).map(t=><span key={t} style={{padding:'3px 10px',borderRadius:20,fontSize:11,background:'var(--cream)',border:'1.5px solid var(--border)',color:'var(--ink)'}}>{t}</span>)}</div>}
+    <DetailRow label="Last worn" value={outfit.lastWornDate?`${formatDate(outfit.lastWornDate)} (${daysAgoLabel(outfit.lastWornDate)})`:'Never worn'}/>
+    <DetailRow label="Times worn" value={outfit.wearCount||0}/>
+    <DetailRow label="Notes" value={outfit.notes}/>
     <div style={{marginTop:12}}><div style={{fontSize:10,letterSpacing:1,textTransform:'uppercase',color:'var(--muted)',marginBottom:8}}>Items in this outfit</div>
       {items.map(item=><div key={item.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
         <div style={{width:32,height:32,borderRadius:6,background:'#fff',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,border:'1px solid var(--border)'}}>{item.photoUrl?<img src={item.photoUrl} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>:<span style={{fontSize:14,opacity:.3}}>{CAT_EMOJI[item.category]||'👗'}</span>}</div>
@@ -960,11 +1173,15 @@ function App(){
   const [loading,setLoading]= useState(true);
   const [catFilter,setCat]  = useState('All');
   const [subcatFilter,setSubcat] = useState('All');
+  const [colourFilter,setColourFilter] = useState('All');
   const [wlFilter,setWlF]   = useState('All');
   const [search,setSearch]  = useState('');
   const [openStore,setOS]   = useState(null);
   const [askQ,setAskQ]      = useState('');
   const [askResult,setAR]   = useState(null);
+  const [extraBrands,setExtraBrands] = useState([]);
+  const [selOutfitTag,setSelOutfitTag] = useState(null);
+  const addBrand = name => { if(!extraBrands.includes(name)) setExtraBrands(p=>[...p,name]); };
   const [showAddW,setShowAddW]    = useState(false);
   const [showAddWL,setShowAddWL]  = useState(false);
   const [showAddO,setShowAddO]    = useState(false);
@@ -1007,9 +1224,9 @@ function App(){
     for(const id of outfit.itemIds){const item=wardrobe.find(w=>w.id===id);if(!item)continue;const ui={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};try{await sb.upd('wardrobe',id,{last_worn_date:date,wear_count:ui.wearCount});setW(p=>p.map(x=>x.id===id?ui:x));}catch(e){console.error(e);}}
   }
 
-  const fW=wardrobe.filter(i=>{const mc=catFilter==='All'||i.category===catFilter;const sc=subcatFilter==='All'||i.subcategory===subcatFilter;const q=search.toLowerCase();return mc&&sc&&(!q||[i.name,i.brand,i.color,i.store,i.category,i.subcategory].some(s=>(s||'').toLowerCase().includes(q)));});
+  const fW=wardrobe.filter(i=>{const mc=catFilter==='All'||i.category===catFilter;const sc=subcatFilter==='All'||i.subcategory===subcatFilter;const cc=colourFilter==='All'||getColourGroup(i.color)===colourFilter;const q=search.toLowerCase();return mc&&sc&&cc&&(!q||[i.name,i.brand,i.color,i.store,i.category,i.subcategory].some(s=>(s||'').toLowerCase().includes(q)));});
   const fWL=wishlist.filter(i=>(wlFilter==='All'||i.category===wlFilter)&&(!search||(i.name||'').toLowerCase().includes(search.toLowerCase())||(i.store||'').toLowerCase().includes(search.toLowerCase()))).sort((a,b)=>(b.rating||3)-(a.rating||3));
-  const incomplete=wardrobe.filter(i=>!i.complete);
+  const incomplete=wardrobe.filter(i=>!i.complete||!i.photoUrl);
   const unworn=wardrobe.filter(i=>i.complete&&isOverdue(i.lastWornDate)).sort((a,b)=>{const da=a.lastWornDate?new Date(a.lastWornDate):new Date(0);const db=b.lastWornDate?new Date(b.lastWornDate):new Date(0);return da-db;});
 
   const ASK_SUGG=["What size are my Levi's jeans?","What Zara size do I wear?","Do I have anything black?","When did I last wear my coat?","What Cotton On size am I?"];
@@ -1038,16 +1255,29 @@ function App(){
       <div className="scroll">
 
         {tab==='wardrobe'&&<>
-          <div className="filterrow">{CATS.map(c=><button key={c} className={`chip${catFilter===c?' active':''}`} onClick={()=>setCat(c)}>{c}</button>)}</div>
+          <div className="filterrow">{CATS.map(c=><button key={c} className={`chip${catFilter===c?' active':''}`} onClick={()=>{setCat(c);setSubcat('All');setColourFilter('All');}}>{c}</button>)}</div>
+          {catFilter!=='All'&&CATEGORY_MAP[catFilter]&&<div className="filterrow" style={{paddingTop:2}}>
+            <button className={`chip${subcatFilter==='All'?' active':''}`} onClick={()=>setSubcat('All')}>All {catFilter}</button>
+            {CATEGORY_MAP[catFilter].map(s=><button key={s} className={`chip${subcatFilter===s?' active':''}`} onClick={()=>setSubcat(s)}>{s}</button>)}
+          </div>}
+          {(()=>{const usedGroups=[...new Set(wardrobe.map(i=>getColourGroup(i.color)).filter(Boolean))];return usedGroups.length>0?<div className="filterrow" style={{paddingTop:2}}><button className={`chip${colourFilter==='All'?' active':''}`} onClick={()=>setColourFilter('All')}>All colours</button>{usedGroups.map(g=><button key={g} className={`chip${colourFilter===g?' active':''}`} onClick={()=>setColourFilter(g)}>{g}</button>)}</div>:null;})()}
           {incomplete.length>0&&<div className="banner"><span>📋</span><div><div style={{fontSize:12,fontWeight:500,color:'var(--ink)'}}>{incomplete.length} item{incomplete.length>1?'s':''} need details</div><div style={{fontSize:10,color:'var(--muted)',marginTop:1}}>Tap to fill in store, size and colour whenever you have time</div></div></div>}
           {fW.length===0?<div className="empty"><div style={{fontSize:40,marginBottom:10}}>🧺</div><div className="empty-t">Your wardrobe is empty</div><div className="empty-s">Tap + to add your first item.</div></div>
           :<>{fW.some(i=>!i.complete)&&<><div className="seclbl">Needs info</div><div className="grid">{fW.filter(i=>!i.complete).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}}/>)}</div></>}{fW.some(i=>i.complete)&&<><div className="seclbl">{catFilter==='All'?'All items':catFilter} · {fW.filter(i=>i.complete).length}</div><div className="grid">{fW.filter(i=>i.complete).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}}/>)}</div></>}</>}
         </>}
 
         {tab==='outfits'&&<>
+          {/* Tag filter — only show tags that appear in saved outfits */}
+          {outfits.length>0&&(()=>{
+            const usedTags=[...new Set(outfits.flatMap(o=>o.tags||[]))];
+            return usedTags.length>0?<div className="filterrow">
+              <button className={`chip${!selOutfitTag?' active':''}`} onClick={()=>setSelOutfitTag(null)}>All</button>
+              {usedTags.map(t=><button key={t} className={`chip${selOutfitTag===t?' active':''}`} onClick={()=>setSelOutfitTag(p=>p===t?null:t)}>{t}</button>)}
+            </div>:null;
+          })()}
           {outfits.length===0?<div className="empty"><div style={{fontSize:40,marginBottom:10}}>✦</div><div className="empty-t">No saved outfits yet</div><div className="empty-s">Tap + to build your first outfit.</div></div>
           :<><div className="seclbl" style={{paddingTop:10}}>Saved outfits · {outfits.length}</div>
-          <div className="outfit-masonry">{outfits.map(outfit=>{const items=outfit.itemIds.map(id=>wardrobe.find(w=>w.id===id)).filter(Boolean);return<div key={outfit.id} className="outfit-card" onClick={()=>{setSelOutfit(outfit);setEditOutfit(false);}}><OutfitThumbnail items={items}/><div className="outfit-info"><div className="outfit-name">{outfit.name}</div><div className="outfit-meta">{items.length} piece{items.length!==1?'s':''}{outfit.occasion?` · ${outfit.occasion}`:''}{outfit.lastWornDate?` · ${daysAgoLabel(outfit.lastWornDate)}`:' · Never worn'}</div></div></div>;})}</div></>}
+          <div className="outfit-masonry">{outfits.filter(o=>!selOutfitTag||(o.tags||[]).includes(selOutfitTag)).map(outfit=>{const items=outfit.itemIds.map(id=>wardrobe.find(w=>w.id===id)).filter(Boolean);return<div key={outfit.id} className="outfit-card" onClick={()=>{setSelOutfit(outfit);setEditOutfit(false);}}><OutfitThumbnail items={items}/><div className="outfit-info"><div className="outfit-name">{outfit.name}</div><div className="outfit-meta">{items.length} piece{items.length!==1?'s':''}{outfit.occasion?` · ${outfit.occasion}`:''}{outfit.lastWornDate?` · ${daysAgoLabel(outfit.lastWornDate)}`:''}</div></div></div>;})}</div></>}
         </>}
 
         {tab==='wishlist'&&<>
@@ -1094,7 +1324,7 @@ function App(){
     </div>
   </div></div>
 
-  {showAddW   && <AddWardrobeSheet  onSave={addItem}  onClose={()=>setShowAddW(false)}  stores={stores} onAddStore={addStore}/>}
+  {showAddW   && <AddWardrobeSheet  onSave={addItem}  onClose={()=>setShowAddW(false)}  stores={stores} onAddStore={addStore} wardrobe={wardrobe} extraBrands={extraBrands} onAddBrand={addBrand} wardrobeColours={wardrobeColours} extraColours={extraColours} onAddColour={addColour}/>}
   {showAddWL  && <AddWishSheet      onSave={addWish}  onClose={()=>setShowAddWL(false)} stores={stores} onAddStore={addStore}/>}
   {showAddO   && <OutfitBuilderSheet wardrobe={wardrobe} outfit={null} onSave={saveOutfit} onClose={()=>setShowAddO(false)}/>}
   {selItem&&!editItem  && <WardrobeDetailSheet item={selItem} onClose={()=>setSelItem(null)} onEdit={()=>setEditItem(true)} onLogWear={logWear} onDelete={()=>delItem(selItem.id)}/>}
