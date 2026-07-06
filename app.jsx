@@ -189,7 +189,8 @@ const OUTFIT_TAGS = [
 const NAV       = [{key:'wardrobe',label:'Wardrobe'},{key:'outfits',label:'Outfits'},{key:'wishlist',label:'Wishlist'},{key:'stats',label:'Stats'},{key:'sizes',label:'Sizes'},{key:'ask',label:'Ask'}];
 const SIZE_CAT_MAP = {'Tops':'Tops','Bottoms':'Bottoms','Dresses':'Dresses','Activewear':'Activewear','Outerwear':'Outerwear','Shoes':'Shoes'};
 
-const SIZE_GUIDES = [
+// Built-in size guides — default hidden stores can be toggled off
+const ALL_SIZE_GUIDES = [
   {store:'Cotton On',cat:'Tops & Bottoms',country:'AU',sizes:[{l:'XS',au:'6',bust:'80–83',waist:'62–65',hip:'87–90'},{l:'S',au:'8',bust:'84–87',waist:'66–69',hip:'91–94'},{l:'M',au:'10',bust:'88–91',waist:'70–73',hip:'95–98'},{l:'L',au:'12',bust:'92–95',waist:'74–77',hip:'99–102'},{l:'XL',au:'14',bust:'96–101',waist:'78–83',hip:'103–108'}]},
   {store:'Zara',cat:'Tops & Bottoms',country:'AU/EU',sizes:[{l:'XS',au:'6',bust:'79–81',waist:'61–63',hip:'87–89'},{l:'S',au:'8',bust:'83–85',waist:'65–67',hip:'91–93'},{l:'M',au:'10–12',bust:'87–89',waist:'69–71',hip:'95–97'},{l:'L',au:'14',bust:'91–93',waist:'73–75',hip:'99–101'},{l:'XL',au:'16',bust:'96–98',waist:'79–81',hip:'105–107'}]},
   {store:'ASOS',cat:'Tops & Bottoms',country:'AU',sizes:[{l:'XS',au:'6',bust:'82',waist:'62',hip:'88'},{l:'S',au:'8',bust:'86',waist:'66',hip:'92'},{l:'M',au:'10',bust:'90',waist:'70',hip:'96'},{l:'L',au:'12',bust:'94',waist:'74',hip:'100'},{l:'XL',au:'14',bust:'98',waist:'78',hip:'104'}]},
@@ -200,9 +201,18 @@ const SIZE_GUIDES = [
   {store:'The Iconic',cat:'Multi-brand (AU)',country:'AU',sizes:[{l:'XS',au:'6',bust:'80–83',waist:'62–65',hip:'86–89'},{l:'S',au:'8',bust:'84–87',waist:'66–69',hip:'90–93'},{l:'M',au:'10',bust:'88–91',waist:'70–73',hip:'94–97'},{l:'L',au:'12',bust:'92–95',waist:'74–77',hip:'98–101'},{l:'XL',au:'14',bust:'96–99',waist:'78–81',hip:'102–105'}]},
   {store:'Lululemon',cat:'Activewear',country:'AU',sizes:[{l:'2',au:'4',bust:'—',waist:'58–61',hip:'83–86'},{l:'4',au:'6',bust:'—',waist:'61–64',hip:'86–89'},{l:'6',au:'8',bust:'—',waist:'64–67',hip:'89–92'},{l:'8',au:'10',bust:'—',waist:'67–70',hip:'92–95'},{l:'10',au:'12',bust:'—',waist:'70–73',hip:'95–98'}]},
   {store:'Nike',cat:'Activewear',country:'AU',sizes:[{l:'XS',au:'6–8',bust:'78–83',waist:'60–65',hip:'85–90'},{l:'S',au:'8–10',bust:'83–88',waist:'65–70',hip:'90–95'},{l:'M',au:'10–12',bust:'88–93',waist:'70–75',hip:'95–100'},{l:'L',au:'12–14',bust:'93–98',waist:'75–80',hip:'100–105'}]},
+  {store:'Uniqlo',cat:'Tops & Bottoms',country:'AU/JP',sizes:[{l:'XXS',au:'4–6',bust:'78–81',waist:'60–63',hip:'84–87'},{l:'XS',au:'6–8',bust:'82–85',waist:'64–67',hip:'88–91'},{l:'S',au:'8–10',bust:'86–89',waist:'68–71',hip:'92–95'},{l:'M',au:'10–12',bust:'90–93',waist:'72–75',hip:'96–99'},{l:'L',au:'12–14',bust:'94–97',waist:'76–79',hip:'100–103'},{l:'XL',au:'14–16',bust:'98–103',waist:'80–85',hip:'104–109'}]},
+  {store:'Beginning Boutique',cat:'Tops & Dresses',country:'AU',sizes:[{l:'6',au:'6',bust:'80',waist:'62',hip:'87'},{l:'8',au:'8',bust:'84',waist:'66',hip:'91'},{l:'10',au:'10',bust:'88',waist:'70',hip:'95'},{l:'12',au:'12',bust:'93',waist:'75',hip:'100'},{l:'14',au:'14',bust:'98',waist:'80',hip:'105'}]},
+  {store:'Halara',cat:'Activewear',country:'AU',sizes:[{l:'XS',au:'6–8',bust:'79–84',waist:'61–66',hip:'86–91'},{l:'S',au:'8–10',bust:'84–89',waist:'66–71',hip:'91–96'},{l:'M',au:'10–12',bust:'89–94',waist:'71–76',hip:'96–101'},{l:'L',au:'12–14',bust:'94–99',waist:'76–81',hip:'101–106'},{l:'XL',au:'14–16',bust:'99–104',waist:'81–86',hip:'106–111'}]},
 ];
 
 function getMySizeSummary(storeName, wardrobe) {
+  const items = wardrobe.filter(w=>(w.store===storeName||w.brand===storeName)&&w.size);
+  if (!items.length) return null;
+  const groups = {};
+  items.forEach(item=>{const cat=SIZE_CAT_MAP[item.category]||item.category;if(!cat)return;if(!groups[cat])groups[cat]=new Set();groups[cat].add(item.size);});
+  return Object.entries(groups).map(([cat,sizes])=>`${cat}: ${[...sizes].join(', ')}`);
+}(storeName, wardrobe) {
   const items = wardrobe.filter(w=>w.store===storeName&&w.size);
   if (!items.length) return null;
   const groups = {};
@@ -227,7 +237,8 @@ const CSS = `
   .topbar-logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;letter-spacing:3px;color:var(--ink);flex-shrink:0;}
   .topbar-title{display:none;font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:300;color:var(--ink);flex-shrink:0;}
   .searchbox{flex:1;display:flex;align-items:center;gap:6px;background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:7px 10px;}
-  .searchbox input{flex:1;border:none;background:none;font-size:12px;font-family:'Jost',sans-serif;color:var(--ink);outline:none;}
+  .searchbox input{flex:1;border:none;background:none;font-size:16px;font-family:'Jost',sans-serif;color:var(--ink);outline:none;}
+  @media(min-width:768px){.searchbox input{font-size:12px;}}
   .searchbox input::placeholder{color:var(--muted);}
   .iconbtn{width:36px;height:36px;border-radius:50%;background:var(--ink);border:none;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
   .iconbtn:hover{opacity:.85;}
@@ -324,7 +335,7 @@ const CSS = `
   /* sheets */
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(5px);}
   @media(min-width:768px){.overlay{align-items:center;}}
-  .sheet{background:var(--panel);border-radius:24px 24px 0 0;max-height:96vh;width:100%;display:flex;flex-direction:column;overflow:hidden;}
+  .sheet{background:var(--panel);border-radius:24px 24px 0 0;max-height:90vh;margin-top:max(44px,env(safe-area-inset-top,44px));width:100%;display:flex;flex-direction:column;overflow:hidden;}
   @media(min-width:768px){.sheet{border-radius:20px;max-width:580px;max-height:88vh;}}
   .sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:14px auto 0;flex-shrink:0;}
   @media(min-width:768px){.sheet-handle{display:none;}}
@@ -1178,6 +1189,8 @@ function App(){
   const [wlFilter,setWlF]   = useState('All');
   const [search,setSearch]  = useState('');
   const [openStore,setOS]   = useState(null);
+  const [hiddenGuides,setHiddenGuides] = useState(new Set());
+  const [showManageGuides,setShowManageGuides] = useState(false);
   const [askQ,setAskQ]      = useState('');
   const [askResult,setAR]   = useState(null);
   const [extraBrands,setExtraBrands] = useState([]);
@@ -1324,26 +1337,65 @@ function App(){
         </>}
 
         {tab==='sizes'&&<div style={{padding:'10px 16px 24px'}}>
-          <div style={{fontSize:12,color:'var(--muted)',lineHeight:1.6,marginBottom:12}}>Your saved sizes are highlighted. Tap a store to expand its chart.</div>
-          {SIZE_GUIDES.map((sg,i)=>{
-            const isOpen=openStore===i;
-            const myItems=wardrobe.filter(w=>w.store===sg.store&&w.size);
-            const mySizes=[...new Set(myItems.map(w=>w.size))];
-            const summary=getMySizeSummary(sg.store,wardrobe);
-            const hasIn=sg.sizes.some(s=>s.inseam);
-            return<div key={sg.store} className="store-card">
-              <div className="store-hd" onClick={()=>setOS(isOpen?null:i)}>
-                <div><div style={{fontSize:13,fontWeight:500}}>{sg.store}</div><div style={{fontSize:10,color:'var(--muted)'}}>{sg.cat} · {sg.country}</div></div>
-                <div style={{display:'flex',alignItems:'center',gap:8}}>{mySizes.length>0&&<span style={{fontSize:10,background:'var(--accent-bg)',color:'var(--accent)',padding:'2px 7px',borderRadius:10,fontWeight:500}}>{mySizes.join(', ')}</span>}<span style={{fontSize:11,color:'var(--muted)',display:'inline-block',transition:'transform .2s',transform:isOpen?'rotate(180deg)':'none'}}>▼</span></div>
-              </div>
-              {isOpen&&<>
-                <div className="size-wrap"><table><thead><tr><th>Size</th><th>AU</th><th>Bust</th><th>Waist</th><th>Hip</th>{hasIn&&<th>Inseam</th>}</tr></thead><tbody>{sg.sizes.map(s=>{const mine=mySizes.includes(s.l);return<tr key={s.l} className={mine?'my-row':''}><td>{s.l}{mine&&<span style={{fontSize:8,color:'var(--accent)',fontWeight:600,marginLeft:3}}>★ mine</span>}</td><td>{s.au}</td><td>{s.bust}</td><td>{s.waist}</td><td>{s.hip}</td>{hasIn&&<td>{s.inseam||'—'}</td>}</tr>;})}</tbody></table></div>
-                {summary&&<div className="my-sizes-summary"><div style={{fontSize:10,letterSpacing:'.8px',textTransform:'uppercase',color:'var(--accent)',fontWeight:500,marginBottom:5}}>My sizes at {sg.store}</div>{summary.map(line=><div key={line} style={{fontSize:12,color:'var(--ink)',marginBottom:2}}>{line}</div>)}</div>}
-              </>}
-            </div>;
-          })}
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+            <div style={{fontSize:12,color:'var(--muted)',lineHeight:1.6}}>Tap to expand · your sizes highlighted</div>
+            <button onClick={()=>setShowManageGuides(p=>!p)} style={{fontSize:11,padding:'5px 10px',borderRadius:8,border:'1.5px solid var(--border)',background:'#fff',cursor:'pointer',fontFamily:"'Jost',sans-serif",color:'var(--muted)'}}>
+              {showManageGuides?'Done':'Manage'}
+            </button>
+          </div>
+          {(()=>{
+            // Brands/stores from wardrobe + built-in guides, wardrobe-used first then alpha
+            const usedNames = [...new Set(wardrobe.flatMap(i=>[i.store,i.brand]).filter(Boolean))];
+            const builtInNames = ALL_SIZE_GUIDES.map(g=>g.store);
+            // Guides for used stores/brands first, then remaining built-ins alpha
+            const usedGuides = ALL_SIZE_GUIDES.filter(g=>usedNames.includes(g.store));
+            const unusedGuides = ALL_SIZE_GUIDES.filter(g=>!usedNames.includes(g.store)).sort((a,b)=>a.store.localeCompare(b.store));
+            // Wardrobe brands with no built-in guide
+            const brandNoGuide = usedNames.filter(n=>!builtInNames.includes(n));
+            const allGuides = [
+              ...usedGuides,
+              ...brandNoGuide.map(n=>({store:n,cat:'Brand from your wardrobe',country:'',sizes:null})),
+              ...unusedGuides,
+            ].filter(sg=>!hiddenGuides.has(sg.store));
+            return allGuides.map((sg,i)=>{
+              const isOpen=openStore===sg.store;
+              const myItems=wardrobe.filter(w=>(w.store===sg.store||w.brand===sg.store)&&w.size);
+              const mySizes=[...new Set(myItems.map(w=>w.size))];
+              const summary=getMySizeSummary(sg.store,wardrobe);
+              const hasIn=sg.sizes&&sg.sizes.some(s=>s.inseam);
+              const isUsed=usedNames.includes(sg.store);
+              return<div key={sg.store} className="store-card">
+                <div className="store-hd" onClick={()=>setOS(isOpen?null:sg.store)}>
+                  <div>
+                    <div style={{display:'flex',alignItems:'center',gap:6}}>
+                      <span style={{fontSize:13,fontWeight:500}}>{sg.store}</span>
+                      {isUsed&&<span style={{fontSize:9,background:'var(--accent-bg)',color:'var(--accent)',padding:'1px 5px',borderRadius:6}}>in wardrobe</span>}
+                    </div>
+                    <div style={{fontSize:10,color:'var(--muted)'}}>{sg.cat}{sg.country?` · ${sg.country}`:''}</div>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    {showManageGuides&&<button onClick={e=>{e.stopPropagation();setHiddenGuides(p=>{const n=new Set(p);n.add(sg.store);return n;});}} style={{fontSize:10,padding:'3px 8px',borderRadius:6,border:'1.5px solid #EAC8C8',background:'none',color:'var(--red)',cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Remove</button>}
+                    {mySizes.length>0&&<span style={{fontSize:10,background:'var(--accent-bg)',color:'var(--accent)',padding:'2px 7px',borderRadius:10,fontWeight:500}}>{mySizes.join(', ')}</span>}
+                    <span style={{fontSize:11,color:'var(--muted)',display:'inline-block',transition:'transform .2s',transform:isOpen?'rotate(180deg)':'none'}}>▼</span>
+                  </div>
+                </div>
+                {isOpen&&<>
+                  {sg.sizes?<>
+                    <div className="size-wrap"><table><thead><tr><th>Size</th><th>AU</th><th>Bust</th><th>Waist</th><th>Hip</th>{hasIn&&<th>Inseam</th>}</tr></thead><tbody>{sg.sizes.map(s=>{const mine=mySizes.includes(s.l);return<tr key={s.l} className={mine?'my-row':''}><td>{s.l}{mine&&<span style={{fontSize:8,color:'var(--accent)',fontWeight:600,marginLeft:3}}>★ mine</span>}</td><td>{s.au}</td><td>{s.bust}</td><td>{s.waist}</td><td>{s.hip}</td>{hasIn&&<td>{s.inseam||'—'}</td>}</tr>;})}</tbody></table></div>
+                    {summary&&<div className="my-sizes-summary"><div style={{fontSize:10,letterSpacing:'.8px',textTransform:'uppercase',color:'var(--accent)',fontWeight:500,marginBottom:5}}>My sizes at {sg.store}</div>{summary.map(line=><div key={line} style={{fontSize:12,color:'var(--ink)',marginBottom:2}}>{line}</div>)}</div>}
+                  </>:<div style={{padding:'12px 14px',fontSize:12,color:'var(--muted)'}}>No size guide available yet for this brand.{summary&&<div style={{marginTop:6,fontWeight:500,color:'var(--ink)'}}>{summary.map(l=><div key={l}>{l}</div>)}</div>}</div>}
+                </>}
+              </div>;
+            });
+          })()}
+          {showManageGuides&&hiddenGuides.size>0&&<div style={{marginTop:8}}>
+            <div style={{fontSize:10,color:'var(--muted)',letterSpacing:.8,textTransform:'uppercase',marginBottom:6}}>Hidden stores</div>
+            {[...hiddenGuides].map(name=><div key={name} style={{display:'flex',alignItems:'center',justifyContent:'space-between',background:'#fff',borderRadius:8,padding:'8px 12px',border:'1px solid var(--border)',marginBottom:4}}>
+              <span style={{fontSize:12}}>{name}</span>
+              <button onClick={()=>setHiddenGuides(p=>{const n=new Set(p);n.delete(name);return n;})} style={{fontSize:11,padding:'3px 8px',borderRadius:6,border:'1.5px solid var(--border)',background:'none',cursor:'pointer',fontFamily:"'Jost',sans-serif",color:'var(--accent)'}}>Restore</button>
+            </div>)}
+          </div>}
         </div>}
-
         {tab==='ask'&&<div className="ask-wrap">
           <div className="ask-box"><div className="ask-input-row"><input className="ask-input" placeholder="e.g. What size are my Levi's jeans?" value={askQ} onChange={e=>setAskQ(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleAsk()}/><button onClick={()=>handleAsk()} style={{padding:'7px 13px',background:'var(--ink)',color:'#fff',border:'none',borderRadius:8,fontSize:11,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Ask</button></div><div>{ASK_SUGG.map(q=><div key={q} onClick={()=>handleAsk(q)} style={{padding:'9px 14px',fontSize:12,color:'var(--muted)',cursor:'pointer',borderTop:'1px solid var(--border)'}}>{q}</div>)}</div></div>
           {askResult&&<div style={{background:'var(--ink)',borderRadius:14,padding:16,color:'#fff'}}><div style={{fontSize:9,letterSpacing:1,textTransform:'uppercase',color:'rgba(255,255,255,.45)',marginBottom:5}}>{askResult.query}</div>{askResult.notFound?<><div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,fontWeight:300,marginBottom:6}}>Nothing found</div><div style={{fontSize:12,color:'rgba(255,255,255,.7)',lineHeight:1.7}}>No items matched. Try a brand, colour, or category.</div></>:<><div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,fontWeight:300,marginBottom:6,lineHeight:1.3}}>{askResult.item.name} — {askResult.item.sizeLabel||askResult.item.size||'size not set'}</div><div style={{fontSize:12,color:'rgba(255,255,255,.7)',lineHeight:1.7,whiteSpace:'pre-line'}}>{[askResult.item.brand,askResult.item.color,askResult.item.category,askResult.item.subcategory,askResult.item.store&&`from ${askResult.item.store}`].filter(Boolean).join(' · ')}{askResult.sRow?`\n\n${askResult.guide.store} size ${askResult.sRow.l}:\nBust ${askResult.sRow.bust}cm · Waist ${askResult.sRow.waist}cm · Hip ${askResult.sRow.hip}cm${askResult.sRow.inseam?` · Inseam ${askResult.sRow.inseam}`:''}`:askResult.guide?'\n\nSize guide available — check the Sizes tab.':''}</div></>}</div>}
