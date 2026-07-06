@@ -66,8 +66,19 @@ function daysAgoLabel(iso) {
   if (!iso) return 'Never worn';
   const d = Math.round((new Date() - new Date(iso)) / 86400000);
   if (d===0) return 'Today'; if (d===1) return 'Yesterday';
-  if (d<7)   return `${d}d ago`; if (d<30) return `${Math.round(d/7)}w ago`;
-  return `${Math.round(d/30)}mo ago`;
+  if (d<7)   return `${d}d ago`;
+  if (d<30)  return `${Math.round(d/7)}w ago`;
+  if (d<365) { const m=Math.round(d/30); return `${m}mo ago`; }
+  const yrs=Math.floor(d/365); const mos=Math.round((d%365)/30);
+  return mos>0 ? `${yrs}yr ${mos}mo ago` : `${yrs}yr ago`;
+}
+function timeSincePurchase(iso) {
+  if (!iso) return null;
+  const d = Math.round((new Date() - new Date(iso)) / 86400000);
+  if (d<30) return `${d} day${d!==1?'s':''} ago`;
+  if (d<365) { const m=Math.round(d/30); return `${m} month${m!==1?'s':''}`; }
+  const yrs=Math.floor(d/365); const mos=Math.round((d%365)/30);
+  return mos>0 ? `${yrs} yr ${mos} mo` : `${yrs} yr`;
 }
 function isOverdue(iso, n=30) {
   if (!iso) return true;
@@ -91,7 +102,7 @@ const findSimilar = (wish,wardrobe) => {
 // ── Constants ─────────────────────────────────────────────────────────────────
 const CATEGORY_MAP = {
   'Tops':       ['T-shirts','Long sleeve tops','Shirts','Blouses','Knits & Jumpers','Tanks & Singlets','Crop tops','Hoodies & Sweatshirts'],
-  'Bottoms':    ['Jeans','Trousers','Shorts','Skirts','Mini skirts','Midi skirts','Maxi skirts','Flares','Leggings'],
+  'Bottoms':    ['Jeans','Trousers','Shorts','Skirts','Skort','Mini skirts','Midi skirts','Maxi skirts','Flares','Leggings'],
   'Dresses':    ['Mini','Midi','Maxi','Slip','Shirt dress','Wrap dress'],
   'Activewear': ['Sports tops','Sports bras','Sports bottoms','Gym sets','Tights','Bike shorts'],
   'Outerwear':  ['Coats','Jackets','Blazers','Vests','Puffer jackets','Leather jackets','Trench coats'],
@@ -350,7 +361,12 @@ const CSS = `
 function CalendarPicker({ value, onSelect, onClose }) {
   const initDate = value ? new Date(value+'T12:00:00') : new Date();
   const [view, setView] = useState({ year: initDate.getFullYear(), month: initDate.getMonth() });
+  // mode: 'day' | 'month' | 'year'
+  const [mode, setMode] = useState('day');
   const todayStr = todayIso();
+  const thisYear = new Date().getFullYear();
+  // year range: current year back to 2000
+  const years = Array.from({length: thisYear - 1999}, (_, i) => thisYear - i);
 
   function buildCells() {
     const firstDow = new Date(view.year, view.month, 1).getDay();
@@ -374,12 +390,64 @@ function CalendarPicker({ value, onSelect, onClose }) {
   function prev() { setView(v=>v.month===0?{year:v.year-1,month:11}:{year:v.year,month:v.month-1}); }
   function next() { setView(v=>v.month===11?{year:v.year+1,month:0}:{year:v.year,month:v.month+1}); }
 
+  // Year picker
+  if (mode==='year') return (
+    <div className="cal-overlay" onClick={onClose}>
+      <div className="cal-box" onClick={e=>e.stopPropagation()}>
+        <div className="cal-header">
+          <div className="cal-title">Select year</div>
+          <button className="cal-nav" onClick={()=>setMode('day')}>✕</button>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:4,maxHeight:240,overflowY:'auto'}}>
+          {years.map(y=>(
+            <div key={y} onClick={()=>{setView(v=>({...v,year:y}));setMode('month');}}
+              style={{padding:'8px 4px',textAlign:'center',borderRadius:8,cursor:'pointer',fontSize:13,
+                fontFamily:"'Jost',sans-serif",
+                background:y===view.year?'var(--ink)':'none',
+                color:y===view.year?'#fff':y===thisYear?'var(--accent)':'var(--ink)',
+                fontWeight:y===view.year?600:400}}>
+              {y}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Month picker
+  if (mode==='month') return (
+    <div className="cal-overlay" onClick={onClose}>
+      <div className="cal-box" onClick={e=>e.stopPropagation()}>
+        <div className="cal-header">
+          <button className="cal-nav" onClick={()=>setMode('year')}>‹</button>
+          <div className="cal-title">{view.year}</div>
+          <button className="cal-nav" onClick={()=>setMode('day')}>✕</button>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6}}>
+          {MONTHS.map((m,i)=>(
+            <div key={m} onClick={()=>{setView(v=>({...v,month:i}));setMode('day');}}
+              style={{padding:'10px 4px',textAlign:'center',borderRadius:8,cursor:'pointer',
+                fontSize:13,fontFamily:"'Jost',sans-serif",
+                background:i===view.month?'var(--ink)':'var(--cream)',
+                color:i===view.month?'#fff':'var(--ink)'}}>
+              {m}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Day picker (default)
   return (
     <div className="cal-overlay" onClick={onClose}>
       <div className="cal-box" onClick={e=>e.stopPropagation()}>
         <div className="cal-header">
           <button className="cal-nav" onClick={prev}>‹</button>
-          <div className="cal-title">{MONTHS_FULL[view.month]} {view.year}</div>
+          <div className="cal-title" onClick={()=>setMode('year')}
+            style={{cursor:'pointer',userSelect:'none',borderBottom:'1px dashed var(--border)',paddingBottom:2}}>
+            {MONTHS_FULL[view.month]} {view.year} ▾
+          </div>
           <button className="cal-nav" onClick={next}>›</button>
         </div>
         <div className="cal-grid">
@@ -660,7 +728,7 @@ function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete}){
       {item.photoUrl?<img src={item.photoUrl} alt="" style={{maxWidth:'100%',maxHeight:'38vh',objectFit:'contain',display:'block'}}/>:<div style={{padding:40,fontSize:52}}>{CAT_EMOJI[item.category]||'👗'}</div>}
     </div>
     {!item.complete&&<div style={{background:'var(--accent-bg)',borderRadius:10,padding:'9px 12px',marginBottom:12,border:'1px solid #DEC9AF',fontSize:12,color:'var(--accent)'}}>Some details are still missing — tap Edit to fill them in.</div>}
-    <DetailRow label="Category" value={item.category}/><DetailRow label="Type" value={item.subcategory}/><DetailRow label="Brand" value={item.brand}/><DetailRow label="Store" value={item.store}/><DetailRow label="Colour" value={item.color}/><DetailRow label="Size" value={item.sizeLabel||item.size}/><DetailRow label="Date bought" value={formatDate(item.dateBought)}/><DetailRow label="Last worn" value={item.lastWornDate?`${formatDate(item.lastWornDate)} (${daysAgoLabel(item.lastWornDate)})`:'Never worn'}/><DetailRow label="Total wears" value={item.wearCount||0}/><DetailRow label="Occasions" value={(item.occasions||[]).join(', ')||null}/><DetailRow label="Notes" value={item.notes}/>
+    <DetailRow label="Category" value={item.category}/><DetailRow label="Type" value={item.subcategory}/><DetailRow label="Brand" value={item.brand}/><DetailRow label="Store" value={item.store}/><DetailRow label="Colour" value={item.color}/><DetailRow label="Size" value={item.sizeLabel||item.size}/><DetailRow label="Date bought" value={item.dateBought ? `${formatDate(item.dateBought)}${timeSincePurchase(item.dateBought) ? " · " + timeSincePurchase(item.dateBought) : ""}` : null}/><DetailRow label="Last worn" value={item.lastWornDate?`${formatDate(item.lastWornDate)} (${daysAgoLabel(item.lastWornDate)})`:'Never worn'}/><DetailRow label="Total wears" value={item.wearCount||0}/><DetailRow label="Occasions" value={(item.occasions||[]).join(', ')||null}/><DetailRow label="Notes" value={item.notes}/>
     <div style={{display:'flex',gap:8,marginTop:14}}>
       <button onClick={()=>setShowLog(true)} style={{flex:1,padding:12,background:'var(--green)',color:'#fff',border:'none',borderRadius:12,fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>+ Log wear</button>
       <button onClick={onEdit} style={{flex:1,padding:12,border:'1.5px solid var(--border)',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Edit</button>
@@ -798,7 +866,7 @@ function ItemPickerSheet({wardrobe,currentId,slotLabel,onPick,onClose}){
   const filtered=wardrobe.filter(i=>{const mc=cat==='All'||i.category===cat;const ms=!q||[i.name,i.brand,i.color].some(s=>(s||'').toLowerCase().includes(q.toLowerCase()));return mc&&ms;});
   return <Sheet title={`Pick ${slotLabel}`} onClose={onClose}>
     <div style={{marginBottom:10}}><input className="f-inp" placeholder="Search…" value={q} onChange={e=>setQ(e.target.value)}/></div>
-    <div className="filterrow" style={{padding:'0 0 8px'}}>{CATS.map(c=><button key={c} className={`chip${cat===c?' active':''}`} onClick={()=>setCat(c)} style={{fontSize:11,padding:'4px 10px'}}>{c}</button>)}</div>
+    <div className="filterrow" style={{padding:'0 0 8px'}}>{CATS.map(c=><button key={c} className={`chip${cat===c?' active':''}`} onClick={()=>{setCat(c);setSubcat('All');}} style={{fontSize:11,padding:'4px 10px'}}>{c}</button>)}</div>
     <div className="picker-grid">{filtered.map(item=><div key={item.id} className={`picker-item${currentId===item.id?' sel':''}`} onClick={()=>onPick(item)}><div className="picker-thumb">{item.photoUrl?<img src={item.photoUrl} alt={item.name}/>:<span style={{fontSize:22,opacity:.3}}>{CAT_EMOJI[item.category]||'👗'}</span>}</div><div className="picker-name">{item.name}</div></div>)}{filtered.length===0&&<div style={{gridColumn:'1/-1',textAlign:'center',padding:'24px 0',fontSize:12,color:'var(--muted)'}}>No items found</div>}</div>
   </Sheet>;
 }
@@ -891,6 +959,7 @@ function App(){
   const [stores,setStores]  = useState([]);
   const [loading,setLoading]= useState(true);
   const [catFilter,setCat]  = useState('All');
+  const [subcatFilter,setSubcat] = useState('All');
   const [wlFilter,setWlF]   = useState('All');
   const [search,setSearch]  = useState('');
   const [openStore,setOS]   = useState(null);
@@ -938,7 +1007,7 @@ function App(){
     for(const id of outfit.itemIds){const item=wardrobe.find(w=>w.id===id);if(!item)continue;const ui={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};try{await sb.upd('wardrobe',id,{last_worn_date:date,wear_count:ui.wearCount});setW(p=>p.map(x=>x.id===id?ui:x));}catch(e){console.error(e);}}
   }
 
-  const fW=wardrobe.filter(i=>{const mc=catFilter==='All'||i.category===catFilter;const q=search.toLowerCase();return mc&&(!q||[i.name,i.brand,i.color,i.store,i.category,i.subcategory].some(s=>(s||'').toLowerCase().includes(q)));});
+  const fW=wardrobe.filter(i=>{const mc=catFilter==='All'||i.category===catFilter;const sc=subcatFilter==='All'||i.subcategory===subcatFilter;const q=search.toLowerCase();return mc&&sc&&(!q||[i.name,i.brand,i.color,i.store,i.category,i.subcategory].some(s=>(s||'').toLowerCase().includes(q)));});
   const fWL=wishlist.filter(i=>(wlFilter==='All'||i.category===wlFilter)&&(!search||(i.name||'').toLowerCase().includes(search.toLowerCase())||(i.store||'').toLowerCase().includes(search.toLowerCase()))).sort((a,b)=>(b.rating||3)-(a.rating||3));
   const incomplete=wardrobe.filter(i=>!i.complete);
   const unworn=wardrobe.filter(i=>i.complete&&isOverdue(i.lastWornDate)).sort((a,b)=>{const da=a.lastWornDate?new Date(a.lastWornDate):new Date(0);const db=b.lastWornDate?new Date(b.lastWornDate):new Date(0);return da-db;});
