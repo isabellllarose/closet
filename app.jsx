@@ -1141,7 +1141,7 @@ function OutfitDetailSheet({outfit,wardrobe,onClose,onEdit,onDelete,onMarkWorn})
 
 // ── Cards ─────────────────────────────────────────────────────────────────────
 function WardrobeCard({item,onClick}){
-  const needsInfo = !item.photoUrl||!item.name||!item.category;
+  const needsInfo = !item.photoUrl||!item.name||!item.category||!item.size||!item.store||(Array.isArray(item.colors)?item.colors.length===0:!item.color);
   return <div className={`icard${needsInfo?' incomplete':''}`} onClick={onClick}>
     <div className="iphoto">
       {item.photoUrl?<img src={item.photoUrl} alt={item.name}/>:<div className="no-photo"><span style={{fontSize:22,opacity:.3}}>{CAT_EMOJI[item.category]||'👗'}</span><span style={{fontSize:9,color:'var(--muted)',marginTop:2}}>{item.subcategory||item.category}</span></div>}
@@ -1238,9 +1238,9 @@ function App(){
   const wardrobeColours = [...new Set(wardrobe.flatMap(i=>i.colors||[]).filter(Boolean))];
   const fW=wardrobe.filter(i=>{const mc=catFilter==='All'||i.category===catFilter;const sc=subcatFilter==='All'||i.subcategory===subcatFilter;const cc=colourFilter==='All'||(i.colors||[]).some(c=>getColourGroup(c)===colourFilter);const q=search.toLowerCase();return mc&&sc&&cc&&(!q||[i.name,i.brand,...(i.colors||[]),i.store,i.category,i.subcategory].some(s=>(s||'').toLowerCase().includes(q)));});
   const fWL=wishlist.filter(i=>(wlFilter==='All'||i.category===wlFilter)&&(!search||(i.name||'').toLowerCase().includes(search.toLowerCase())||(i.store||'').toLowerCase().includes(search.toLowerCase()))).sort((a,b)=>(b.rating||3)-(a.rating||3));
-  // Recompute needsInfo from actual fields rather than trusting stored complete flag
-  // An item needs attention if it's missing a photo, name, or category
-  const incomplete=wardrobe.filter(i=>!i.photoUrl||!i.name||!i.category);
+  // Item needs attention if missing photo, name, category, size, store, or colour
+  const isIncomplete = i => !i.photoUrl||!i.name||!i.category||!i.size||!i.store||(Array.isArray(i.colors)?i.colors.length===0:!i.color);
+  const incomplete=wardrobe.filter(isIncomplete);
   const unworn=wardrobe.filter(i=>i.complete&&isOverdue(i.lastWornDate)).sort((a,b)=>{const da=a.lastWornDate?new Date(a.lastWornDate):new Date(0);const db=b.lastWornDate?new Date(b.lastWornDate):new Date(0);return da-db;});
 
   const ASK_SUGG=["What size are my Levi's jeans?","What Zara size do I wear?","Do I have anything black?","When did I last wear my coat?","What Cotton On size am I?"];
@@ -1292,7 +1292,7 @@ function App(){
             </div>
           </>}
           {fW.length===0?<div className="empty"><div style={{fontSize:40,marginBottom:10}}>🧺</div><div className="empty-t">Your wardrobe is empty</div><div className="empty-s">Tap + to add your first item.</div></div>
-          :<>{fW.some(i=>!i.photoUrl||!i.name||!i.category)&&<><div className="seclbl">Needs info</div><div className="grid">{fW.filter(i=>!i.photoUrl||!i.name||!i.category).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}}/>)}</div></>}{fW.some(i=>i.photoUrl&&i.name&&i.category)&&<><div className="seclbl">{catFilter==='All'?'All items':catFilter} · {fW.filter(i=>i.photoUrl&&i.name&&i.category).length}</div><div className="grid">{fW.filter(i=>i.photoUrl&&i.name&&i.category).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}}/>)}</div></>}</>}
+          :<>{fW.some(isIncomplete)&&<><div className="seclbl">Needs info</div><div className="grid">{fW.filter(isIncomplete).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}}/>)}</div></>}{fW.some(i=>!isIncomplete(i))&&<><div className="seclbl">{catFilter==='All'?'All items':catFilter} · {fW.filter(i=>!isIncomplete(i)).length}</div><div className="grid">{fW.filter(i=>!isIncomplete(i)).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}}/>)}</div></>}</>}
         </>}
 
         {tab==='outfits'&&<>
