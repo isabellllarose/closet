@@ -825,6 +825,21 @@ function ColourPicker({values=[], onChange, wardrobeColours=[], extraColours=[],
 }
 
 
+// ── Shared UI ─────────────────────────────────────────────────────────────────
+function Sheet({title,onClose,children,actions}){
+  const sheetRef=useRef();const startY=useRef(null);
+  function onTouchStart(e){startY.current=e.touches[0].clientY;}
+  function onTouchEnd(e){if(startY.current===null)return;const dy=e.changedTouches[0].clientY-startY.current;if(dy>80)onClose();startY.current=null;}
+  return <div className="overlay" onClick={onClose}><div className="sheet" ref={sheetRef} onClick={e=>e.stopPropagation()} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}><div className="sheet-handle"/><div className="sheet-top"><div className="sheet-title">{title}</div><button className="sheet-close" onClick={onClose}>✕</button></div><div className="sheet-body">{children}</div>{actions&&<div className="sheet-actions">{actions}</div>}</div></div>;
+}
+function BtnO({onClick,children}){return <button onClick={onClick} style={{flex:1,padding:12,border:'1.5px solid #E0D9CF',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif",color:'#1A1714'}}>{children}</button>;}
+function BtnF({onClick,disabled,loading,children,color='#1A1714'}){return <button onClick={onClick} disabled={disabled||loading} style={{flex:1,padding:12,border:'none',borderRadius:12,background:color,color:'#fff',fontSize:13,cursor:disabled||loading?'default':'pointer',fontFamily:"'Jost',sans-serif",opacity:disabled||loading?.5:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>{loading&&<div className="spinner"/>}{children}</button>;}
+function FGrp({label,children,style={}}){return <div style={{marginBottom:11,...style}}><label className="f-lbl">{label}</label>{children}</div>;}
+function FInp({value,onChange,placeholder='',type='text',style={}}){return <input type={type} value={value||''} onChange={onChange} placeholder={placeholder} className="f-inp" style={style}/>;}
+function FSel({value,onChange,options,placeholder=''}){return <select value={value||''} onChange={onChange} className="f-inp f-sel">{placeholder&&<option value="">{placeholder}</option>}{options.map(o=><option key={o} value={o}>{o}</option>)}</select>;}
+function FRow({children}){return <div style={{display:'flex',gap:8}}>{children}</div>;}
+function DetailRow({label,value}){if(!value&&value!==0)return null;return <div className="detail-row"><span style={{fontSize:11,color:'#8A837A',flexShrink:0}}>{label}</span><span style={{fontSize:12,fontWeight:500,color:'#1A1714',textAlign:'right'}}>{value}</span></div>;}
+
 // ── Wardrobe fields ───────────────────────────────────────────────────────────
 function WardrobeFields({d,up,stores,onAddStore,wardrobe=[],extraBrands=[],onAddBrand=()=>{},wardrobeColours=[],extraColours=[],onAddColour=()=>{}}){
   const subcats=CATEGORY_MAP[d.category]||[];
