@@ -262,7 +262,7 @@ const CSS = `
   .icard.incomplete{border-style:dashed;}
   /* Square-ish photo area with white bg padding */
   .iphoto{width:100%;aspect-ratio:1/1;background:#fff;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
-  .iphoto img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;}
+  .iphoto img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;}
   .iphoto .no-photo{display:flex;flex-direction:column;align-items:center;gap:3px;}
   .badge-warn{position:absolute;top:5px;right:5px;background:var(--accent);color:#fff;font-size:8px;padding:2px 5px;border-radius:4px;}
   .badge-worn{position:absolute;bottom:5px;left:5px;background:rgba(0,0,0,.52);color:#fff;font-size:8px;padding:2px 5px;border-radius:4px;backdrop-filter:blur(4px);}
@@ -885,8 +885,8 @@ function EditWardrobeSheet({item,onSave,onCancel,stores,onAddStore,wardrobe=[],e
 function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete,onToggleFav}){
   const [showLog,setShowLog]=useState(false);
   return <Sheet title={item.name||'Untitled'} onClose={onClose}>
-    <div style={{width:'100%',maxHeight:'32vh',background:'#fff',display:'flex',alignItems:'center',justifyContent:'center',borderRadius:14,marginBottom:14,overflow:'hidden',flexShrink:0}}>
-      {item.photoUrl?<img src={item.photoUrl} alt="" style={{maxWidth:'100%',maxHeight:'38vh',objectFit:'contain',display:'block'}}/>:<div style={{padding:40,fontSize:52}}>{CAT_EMOJI[item.category]||'👗'}</div>}
+    <div style={{width:'100%',background:'#fff',borderRadius:14,marginBottom:14,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
+      {item.photoUrl?<img src={item.photoUrl} alt="" style={{width:'100%',height:'auto',maxHeight:'42vh',objectFit:'contain',display:'block'}}/>:<div style={{padding:40,fontSize:52}}>{CAT_EMOJI[item.category]||'👗'}</div>}
     </div>
     {!item.complete&&<div style={{background:'var(--accent-bg)',borderRadius:10,padding:'9px 12px',marginBottom:12,border:'1px solid #DEC9AF',fontSize:12,color:'var(--accent)'}}>Some details are still missing — tap Edit to fill them in.</div>}
     <DetailRow label="Category" value={item.category}/><DetailRow label="Type" value={item.subcategory}/><DetailRow label="Brand" value={item.brand}/><DetailRow label="Store" value={item.store}/><DetailRow label="Colour" value={(item.colors||[item.color]).filter(Boolean).join(", ")||null}/><DetailRow label="Size" value={item.sizeLabel||item.size}/><DetailRow label="Date bought" value={item.dateBought ? `${formatDate(item.dateBought)}${timeSincePurchase(item.dateBought) ? " · " + timeSincePurchase(item.dateBought) : ""}` : null}/><DetailRow label="Last worn" value={item.lastWornDate?`${formatDate(item.lastWornDate)} (${daysAgoLabel(item.lastWornDate)})`:'Never worn'}/><DetailRow label="Total wears" value={item.wearCount||0}/><DetailRow label="Occasions" value={(item.occasions||[]).join(', ')||null}/><DetailRow label="Notes" value={item.notes}/>
@@ -1224,6 +1224,7 @@ function App(){
   const [extraColours,setExtraColours] = useState([]);
   const [selOutfitTag,setSelOutfitTag] = useState(null);
   const [outfitOrder,setOutfitOrder] = useState([]);
+  const [arrangingOutfits,setArrangingOutfits] = useState(false);
   const dragOutfit = useRef(null);
   const addBrand = name => { if(!extraBrands.includes(name)) setExtraBrands(p=>[...p,name]); };
   const addColour = c => { if(c&&!extraColours.includes(c)) setExtraColours(p=>[...p,c]); };
@@ -1344,10 +1345,21 @@ function App(){
           <div className="filterrow">
             {CATS.map(c=><button key={c} className={`chip${catFilter===c?' active':''}`} onClick={()=>{setCat(c);setSubcat('All');setColourFilter('All');}}>{c}</button>)}
             <button className={`chip${showFavsOnly?' active':''}`} onClick={()=>setShowFavsOnly(p=>!p)}>★ Favourites</button>
-            <button className="chip" onClick={()=>setShowWardrobeSort(p=>!p)} style={{marginLeft:4}}>Sort {wardrobeSort!=='default'?'·':''}</button>
           </div>
-          {showWardrobeSort&&<div style={{display:'flex',flexWrap:'wrap',gap:5,padding:'4px 16px 8px'}}>
-            {[['default','Default'],['az','A–Z'],['za','Z–A'],['brand','Brand'],['store','Store'],['most_worn','Most worn'],['least_worn','Least worn'],['recent_worn','Recently worn'],['newest','Newest purchase'],['oldest','Oldest purchase'],['favs','Favourites first']].map(([v,l])=><button key={v} onClick={()=>{setWardrobeSort(v);setShowWardrobeSort(false);}} style={{padding:'5px 11px',borderRadius:20,fontSize:11,border:'1.5px solid',borderColor:wardrobeSort===v?'var(--ink)':'var(--border)',background:wardrobeSort===v?'var(--ink)':'#fff',color:wardrobeSort===v?'#fff':'var(--muted)',cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>{l}</button>)}
+          {/* Sort bar — sits below filters, right-aligned, distinct from filter chips */}
+          <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end',padding:'2px 16px 6px',gap:8}}>
+            {wardrobeSort!=='default'&&<span style={{fontSize:10,color:'var(--accent)'}}>Sorted: {[['az','A–Z'],['za','Z–A'],['brand','Brand'],['store','Store'],['most_worn','Most worn'],['least_worn','Least worn'],['recent_worn','Recently worn'],['newest','Newest'],['oldest','Oldest'],['favs','Favourites']].find(([v])=>v===wardrobeSort)?.[1]}</span>}
+            <button onClick={()=>setShowWardrobeSort(p=>!p)}
+              style={{padding:'5px 14px',borderRadius:8,border:'1.5px solid var(--ink)',background:showWardrobeSort?'var(--ink)':'transparent',color:showWardrobeSort?'#fff':'var(--ink)',fontSize:10,letterSpacing:'1px',textTransform:'uppercase',fontWeight:600,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>
+              Sort by
+            </button>
+          </div>
+          {showWardrobeSort&&<div style={{margin:'0 16px 10px',background:'#fff',borderRadius:12,border:'1.5px solid var(--border)',padding:'10px 12px',boxShadow:'0 4px 16px rgba(0,0,0,.08)'}}>
+            <div style={{fontSize:10,letterSpacing:'1px',textTransform:'uppercase',color:'var(--muted)',marginBottom:8}}>Sort wardrobe by</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+              {[['default','Default'],['az','A–Z'],['za','Z–A'],['brand','Brand'],['store','Store'],['most_worn','Most worn'],['least_worn','Least worn'],['recent_worn','Recently worn'],['newest','Newest purchase'],['oldest','Oldest purchase'],['favs','Favourites first']].map(([v,l])=><button key={v} onClick={()=>{setWardrobeSort(v);setShowWardrobeSort(false);}}
+                style={{padding:'5px 11px',borderRadius:8,fontSize:11,border:'1.5px solid',borderColor:wardrobeSort===v?'var(--ink)':'var(--border)',background:wardrobeSort===v?'var(--ink)':'#fff',color:wardrobeSort===v?'#fff':'var(--muted)',cursor:'pointer',fontFamily:"'Jost',sans-serif",fontWeight:wardrobeSort===v?500:400}}>{l}</button>)}
+            </div>
           </div>}
           {catFilter!=='All'&&CATEGORY_MAP[catFilter]&&<div className="filterrow" style={{paddingTop:2}}>
             <button className={`chip${subcatFilter==='All'?' active':''}`} onClick={()=>setSubcat('All')}>All {catFilter}</button>
@@ -1375,13 +1387,19 @@ function App(){
         </>}
 
         {tab==='outfits'&&<>
-          {/* Tag filter — only show tags that appear in saved outfits */}
+          {/* Tag filter + arrange button */}
           {outfits.length>0&&(()=>{
             const usedTags=[...new Set(outfits.flatMap(o=>o.tags||[]))];
-            return usedTags.length>0?<div className="filterrow">
-              <button className={`chip${!selOutfitTag?' active':''}`} onClick={()=>setSelOutfitTag(null)}>All</button>
-              {usedTags.map(t=><button key={t} className={`chip${selOutfitTag===t?' active':''}`} onClick={()=>setSelOutfitTag(p=>p===t?null:t)}>{t}</button>)}
-            </div>:null;
+            return <div style={{display:'flex',alignItems:'center',gap:0}}>
+              {usedTags.length>0&&<div className="filterrow" style={{flex:1,paddingRight:0}}>
+                <button className={`chip${!selOutfitTag?' active':''}`} onClick={()=>setSelOutfitTag(null)}>All</button>
+                {usedTags.map(t=><button key={t} className={`chip${selOutfitTag===t?' active':''}`} onClick={()=>setSelOutfitTag(p=>p===t?null:t)}>{t}</button>)}
+              </div>}
+              <button onClick={()=>setArrangingOutfits(p=>!p)}
+                style={{flexShrink:0,padding:'6px 14px',margin:'10px 16px 6px 8px',borderRadius:8,border:'1.5px solid var(--ink)',background:arrangingOutfits?'var(--ink)':'transparent',color:arrangingOutfits?'#fff':'var(--ink)',fontSize:10,letterSpacing:'1px',textTransform:'uppercase',fontWeight:600,cursor:'pointer',fontFamily:"'Jost',sans-serif",whiteSpace:'nowrap'}}>
+                {arrangingOutfits?'Done':'Arrange'}
+              </button>
+            </div>;
           })()}
           {outfits.length===0?<div className="empty"><div style={{fontSize:40,marginBottom:10}}>✦</div><div className="empty-t">No saved outfits yet</div><div className="empty-s">Tap + to build your first outfit.</div></div>
           :<><div className="seclbl" style={{paddingTop:10}}>Saved outfits · {outfits.length}</div>
@@ -1394,11 +1412,11 @@ function App(){
                 {filtered.map(outfit=>{
                   const items=outfit.itemIds.map(id=>wardrobe.find(w=>w.id===id)).filter(Boolean);
                   return <div key={outfit.id} className="outfit-card"
-                    draggable
-                    onDragStart={()=>{ dragOutfit.current=outfit.id; }}
-                    onDragOver={e=>e.preventDefault()}
-                    onDrop={()=>{
-                      if(!dragOutfit.current||dragOutfit.current===outfit.id)return;
+                    draggable={arrangingOutfits}
+                    onDragStart={e=>{ if(!arrangingOutfits)return; dragOutfit.current=outfit.id; e.dataTransfer.effectAllowed='move'; }}
+                    onDragOver={e=>{ if(!arrangingOutfits)return; e.preventDefault(); e.dataTransfer.dropEffect='move'; }}
+                    onDrop={e=>{ e.preventDefault();
+                      if(!arrangingOutfits||!dragOutfit.current||dragOutfit.current===outfit.id)return;
                       const ids=filtered.map(o=>o.id);
                       const from=ids.indexOf(dragOutfit.current);
                       const to=ids.indexOf(outfit.id);
@@ -1408,7 +1426,13 @@ function App(){
                       setOutfitOrder(newOrder);
                       dragOutfit.current=null;
                     }}
-                    onClick={()=>{setSelOutfit(outfit);setEditOutfit(false);}}>
+                    onClick={()=>{ if(arrangingOutfits)return; setSelOutfit(outfit);setEditOutfit(false); }}
+                    style={{cursor:arrangingOutfits?'grab':'pointer',opacity:1,position:'relative'}}>
+                    {arrangingOutfits&&<div style={{position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:2,display:'flex',alignItems:'flex-start',justifyContent:'flex-end',padding:6,pointerEvents:'none'}}>
+                      <div style={{background:'rgba(0,0,0,.55)',borderRadius:6,padding:'3px 6px',display:'flex',gap:2}}>
+                        <span style={{color:'#fff',fontSize:12,lineHeight:1}}>⠿</span>
+                      </div>
+                    </div>}
                     <OutfitThumbnail items={items}/>
                     <div className="outfit-info">
                       <div style={{display:'flex',flexWrap:'wrap',gap:3,marginBottom:3}}>
