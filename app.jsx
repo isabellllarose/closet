@@ -329,7 +329,7 @@ const CSS = `
   /* sheets */
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(5px);}
   @media(min-width:768px){.overlay{align-items:center;}}
-  .sheet{background:var(--panel);border-radius:24px 24px 0 0;max-height:90vh;margin-top:max(44px,env(safe-area-inset-top,44px));width:100%;display:flex;flex-direction:column;overflow:hidden;}
+  .sheet{background:var(--panel);border-radius:24px 24px 0 0;max-height:88vh;margin-top:max(44px,env(safe-area-inset-top,44px));width:100%;display:flex;flex-direction:column;overflow:hidden;}
   @media(min-width:768px){.sheet{border-radius:20px;max-width:580px;max-height:88vh;}}
   .sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:14px auto 0;flex-shrink:0;}
   @media(min-width:768px){.sheet-handle{display:none;}}
@@ -884,7 +884,7 @@ function EditWardrobeSheet({item,onSave,onCancel,stores,onAddStore,wardrobe=[],e
 function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete}){
   const [showLog,setShowLog]=useState(false);
   return <Sheet title={item.name||'Untitled'} onClose={onClose}>
-    <div style={{width:'100%',maxHeight:'38vh',background:'#fff',display:'flex',alignItems:'center',justifyContent:'center',borderRadius:14,marginBottom:14,overflow:'hidden',flexShrink:0}}>
+    <div style={{width:'100%',maxHeight:'32vh',background:'#fff',display:'flex',alignItems:'center',justifyContent:'center',borderRadius:14,marginBottom:14,overflow:'hidden',flexShrink:0}}>
       {item.photoUrl?<img src={item.photoUrl} alt="" style={{maxWidth:'100%',maxHeight:'38vh',objectFit:'contain',display:'block'}}/>:<div style={{padding:40,fontSize:52}}>{CAT_EMOJI[item.category]||'👗'}</div>}
     </div>
     {!item.complete&&<div style={{background:'var(--accent-bg)',borderRadius:10,padding:'9px 12px',marginBottom:12,border:'1px solid #DEC9AF',fontSize:12,color:'var(--accent)'}}>Some details are still missing — tap Edit to fill them in.</div>}
@@ -902,7 +902,27 @@ function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete}){
 function WishFields({d,up,stores,onAddStore}){
   const [urlIn,setUrlIn]=useState(d.url||'');const [fetching,setFetching]=useState(false);
   const subcats=CATEGORY_MAP[d.category]||[];
-  async function fetchUrl(){if(!urlIn.trim())return;setFetching(true);await new Promise(r=>setTimeout(r,700));let sn='';try{sn=new URL(urlIn).hostname.replace('www.','').split('.')[0];}catch{}sn=sn?sn.charAt(0).toUpperCase()+sn.slice(1):'';up({url:urlIn,store:d.store||sn,name:d.name||`Item from ${sn}`});setFetching(false);}
+  async function fetchUrl(){
+    if(!urlIn.trim())return;
+    setFetching(true);
+    try {
+      const res = await fetch(`https://closet-fetch.isabellaheath24.workers.dev/?url=${encodeURIComponent(urlIn)}`);
+      const data = await res.json();
+      up({
+        url: urlIn,
+        name: d.name || data.title || '',
+        store: d.store || data.store || '',
+        price: d.price || (data.price ? String(data.price) : ''),
+        photoUrls: data.image && (!d.photoUrls||d.photoUrls.length===0) ? [data.image] : d.photoUrls||[],
+      });
+    } catch(e) {
+      // fallback — just extract store name from URL
+      let sn='';try{sn=new URL(urlIn).hostname.replace('www.','').replace('m.','').split('.')[0];}catch{}
+      sn=sn?sn.charAt(0).toUpperCase()+sn.slice(1):'';
+      up({url:urlIn,store:d.store||sn});
+    }
+    setFetching(false);
+  }
   return <>
     <WishPhotoManager urls={d.photoUrls||[]} onChange={newUrls=>up({photoUrls:newUrls})}/>
     <FGrp label="Paste a link (optional)">
@@ -1184,6 +1204,7 @@ function App(){
   const [wlFilter,setWlF]   = useState('All');
   const [search,setSearch]  = useState('');
   const [openStore,setOS]   = useState(null);
+  const [rewearModal,setRewearModal] = useState(null); // 'never' | 'overdue' | null
   const [hiddenGuides,setHiddenGuides] = useState(new Set());
   const [showManageGuides,setShowManageGuides] = useState(false);
   const [askQ,setAskQ]      = useState('');
@@ -1241,7 +1262,10 @@ function App(){
   // Item needs attention if missing photo, name, category, size, store, or colour
   const isIncomplete = i => !i.photoUrl||!i.name||!i.category||!i.size||!i.store||(Array.isArray(i.colors)?i.colors.length===0:!i.color);
   const incomplete=wardrobe.filter(isIncomplete);
-  const unworn=wardrobe.filter(i=>i.complete&&isOverdue(i.lastWornDate)).sort((a,b)=>{const da=a.lastWornDate?new Date(a.lastWornDate):new Date(0);const db=b.lastWornDate?new Date(b.lastWornDate):new Date(0);return da-db;});
+  const neverWorn = wardrobe.filter(i=>!isIncomplete(i)&&!i.lastWornDate);
+  const overdueWorn = wardrobe.filter(i=>!isIncomplete(i)&&i.lastWornDate&&isOverdue(i.lastWornDate))
+    .sort((a,b)=>new Date(a.lastWornDate)-new Date(b.lastWornDate));
+  const unworn = [...neverWorn, ...overdueWorn];
 
   const ASK_SUGG=["What size are my Levi's jeans?","What Zara size do I wear?","Do I have anything black?","When did I last wear my coat?","What Cotton On size am I?"];
   function handleAsk(q){const query=(q||askQ).toLowerCase().trim();if(!query)return;const words=query.split(' ').filter(w=>w.length>3);const match=wardrobe.find(i=>words.some(w=>[i.name,i.brand,i.color,i.store,i.category,i.subcategory].some(s=>(s||'').toLowerCase().includes(w))));if(match){const guide=SIZE_GUIDES.find(g=>g.store.toLowerCase()===(match.store||'').toLowerCase());const sRow=guide?.sizes.find(s=>s.l===match.size);setAR({item:match,guide,sRow,query:q||askQ});}else{setAR({notFound:true,query:q||askQ});}setAskQ('');}
@@ -1321,7 +1345,7 @@ function App(){
               {n:wardrobe.filter(i=>i.complete).length,l:'Items in wardrobe',tab:'wardrobe'},
               {n:outfits.length,l:'Saved outfits',tab:'outfits'},
               {n:wishlist.length,l:'On wishlist',tab:'wishlist'},
-              {n:unworn.length,l:'Unworn 30+ days',tab:null},
+              {n:neverWorn.length+overdueWorn.length,l:'Unworn / overdue',tab:null},
             ].map(s=><div key={s.l} className="stat-card"
               onClick={s.tab?()=>setTab(s.tab):undefined}
               style={{cursor:s.tab?'pointer':'default'}}>
@@ -1330,7 +1354,49 @@ function App(){
             </div>)}
           </div>
 
-          {unworn.length>0&&<><div className="seclbl">Consider rewearing</div><div style={{display:'flex',flexDirection:'column',gap:7,padding:'0 16px 24px'}}>{unworn.slice(0,6).map(i=><div key={i.id} onClick={()=>{setSelItem(i);setEditItem(false);setTab('wardrobe');}} style={{display:'flex',alignItems:'center',gap:10,background:'#fff',borderRadius:12,padding:'10px 13px',border:'1px solid var(--border)',cursor:'pointer'}}><div style={{width:36,height:36,borderRadius:6,background:'#fff',flexShrink:0,overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,border:'1px solid var(--border)'}}>{i.photoUrl?<img src={i.photoUrl} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>:CAT_EMOJI[i.category]}</div><div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{i.name}</div><div style={{fontSize:10,color:'var(--red)',marginTop:1}}>{i.lastWornDate?`Last worn ${formatDate(i.lastWornDate)}`:'Never worn'} · {i.wearCount||0} wears</div></div><span style={{fontSize:11,color:'var(--muted)',textDecoration:'underline',flexShrink:0}}>View →</span></div>)}</div></>}
+          {(neverWorn.length>0||overdueWorn.length>0)&&<>
+            <div className="seclbl" style={{marginTop:6}}>Consider rewearing</div>
+            <div style={{display:'flex',gap:10,padding:'0 16px 24px'}}>
+              {neverWorn.length>0&&<div onClick={()=>setRewearModal('never')}
+                style={{flex:1,background:'#fff',borderRadius:14,padding:'14px',border:'1px solid var(--border)',cursor:'pointer',textAlign:'center'}}>
+                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:32,fontWeight:300,color:'var(--red)'}}>{neverWorn.length}</div>
+                <div style={{fontSize:11,color:'var(--muted)',marginTop:2}}>Never worn</div>
+                <div style={{fontSize:10,color:'var(--accent)',marginTop:6,textDecoration:'underline'}}>See items →</div>
+              </div>}
+              {overdueWorn.length>0&&<div onClick={()=>setRewearModal('overdue')}
+                style={{flex:1,background:'#fff',borderRadius:14,padding:'14px',border:'1px solid var(--border)',cursor:'pointer',textAlign:'center'}}>
+                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:32,fontWeight:300,color:'var(--accent)'}}>{overdueWorn.length}</div>
+                <div style={{fontSize:11,color:'var(--muted)',marginTop:2}}>Not worn in 30+ days</div>
+                <div style={{fontSize:10,color:'var(--accent)',marginTop:6,textDecoration:'underline'}}>See items →</div>
+              </div>}
+            </div>
+          </>}
+          {rewearModal&&<div className="overlay" onClick={()=>setRewearModal(null)}>
+            <div className="sheet" onClick={e=>e.stopPropagation()}>
+              <div className="sheet-handle"/>
+              <div className="sheet-top">
+                <div className="sheet-title">{rewearModal==='never'?'Never worn':'Not worn in 30+ days'}</div>
+                <button className="sheet-close" onClick={()=>setRewearModal(null)}>✕</button>
+              </div>
+              <div className="sheet-body">
+                <div className="grid" style={{paddingBottom:8}}>
+                  {(rewearModal==='never'?neverWorn:overdueWorn).map(item=><div key={item.id}
+                    className="icard"
+                    onClick={()=>{setRewearModal(null);setSelItem(item);setEditItem(false);setTab('wardrobe');}}>
+                    <div className="iphoto">
+                      {item.photoUrl?<img src={item.photoUrl} alt={item.name}/>
+                      :<div className="no-photo"><span style={{fontSize:22,opacity:.3}}>{CAT_EMOJI[item.category]||'👗'}</span></div>}
+                      {item.lastWornDate&&<span className="badge-worn">{daysAgoLabel(item.lastWornDate)}</span>}
+                    </div>
+                    <div className="iinfo">
+                      <div className="iname">{item.name||'Untitled'}</div>
+                      <div className="imeta" style={{color:'var(--red)'}}>{item.lastWornDate?daysAgoLabel(item.lastWornDate):'Never worn'}</div>
+                    </div>
+                  </div>)}
+                </div>
+              </div>
+            </div>
+          </div>}
         </>}
 
         {tab==='sizes'&&<div style={{padding:'10px 16px 24px'}}>
