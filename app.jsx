@@ -87,8 +87,8 @@ function isOverdue(iso, n=30) {
 
 // ── Data helpers ──────────────────────────────────────────────────────────────
 const uid    = () => `${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
-const toRow  = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,brand:i.brand||null,store:i.store||null,colors:Array.isArray(i.colors)?i.colors:(i.color?[i.color]:[]),size:i.size||null,size_label:i.sizeLabel||i.size||null,photo_url:i.photoUrl||null,occasions:i.occasions||[],date_bought:i.dateBought||null,last_worn_date:i.lastWornDate||null,wear_count:i.wearCount||0,notes:i.notes||null,complete:!!i.complete});
-const fromRow= r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,brand:r.brand,store:r.store,colors:Array.isArray(r.colors)?r.colors:(r.color?[r.color]:[]),color:Array.isArray(r.colors)&&r.colors.length?r.colors[0]:(r.color||null),size:r.size,sizeLabel:r.size_label,photoUrl:r.photo_url,occasions:r.occasions||[],dateBought:r.date_bought,lastWornDate:r.last_worn_date,wearCount:r.wear_count||0,notes:r.notes,complete:r.complete});
+const toRow  = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,brand:i.brand||null,store:i.store||null,colors:Array.isArray(i.colors)?i.colors:(i.color?[i.color]:[]),size:i.size||null,size_label:i.sizeLabel||i.size||null,photo_url:i.photoUrl||null,occasions:i.occasions||[],date_bought:i.dateBought||null,last_worn_date:i.lastWornDate||null,wear_count:i.wearCount||0,notes:i.notes||null,complete:!!i.complete,favourite:!!i.favourite});
+const fromRow= r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,brand:r.brand,store:r.store,colors:Array.isArray(r.colors)?r.colors:(r.color?[r.color]:[]),color:Array.isArray(r.colors)&&r.colors.length?r.colors[0]:(r.color||null),size:r.size,sizeLabel:r.size_label,photoUrl:r.photo_url,occasions:r.occasions||[],dateBought:r.date_bought,lastWornDate:r.last_worn_date,wearCount:r.wear_count||0,notes:r.notes,complete:r.complete,favourite:!!r.favourite});
 const toWR   = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,store:i.store||null,brand:i.brand||null,url:i.url||null,price:i.price||null,orig_price:i.origPrice||null,on_sale:!!i.onSale,rating:i.rating||3,photo_urls:i.photoUrls||[],color:i.color||null,notes:i.notes||null,added_date:i.addedDate||today2()});
 const fromWR = r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,store:r.store,brand:r.brand,url:r.url,price:r.price,origPrice:r.orig_price,onSale:r.on_sale,rating:r.rating||3,photoUrls:Array.isArray(r.photo_urls)?r.photo_urls:(r.photo_urls?[r.photo_urls]:[]),color:r.color,notes:r.notes,addedDate:r.added_date});
 const toOR   = o => ({id:o.id,tags:o.tags||[],notes:o.notes||null,item_ids:o.itemIds||[],item_positions:o.positions||null,wear_count:o.wearCount||0,last_worn_date:o.lastWornDate||null});
@@ -101,16 +101,17 @@ const findSimilar = (wish,wardrobe) => {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const CATEGORY_MAP = {
-  'Tops':       ['T-shirts','Long sleeve tops','Shirts','Blouses','Knits & Jumpers','Tanks & Singlets','Crop tops','Hoodies & Sweatshirts','Bodysuit'],
-  'Bottoms':    ['Jeans','Trousers','Shorts','Skirts','Skort','Mini skirts','Midi skirts','Maxi skirts','Flares','Leggings'],
-  'Dresses':    ['Mini','Midi','Maxi','Slip','Shirt dress','Wrap dress','Sundress','Romper'],
-  'Activewear': ['Sports tops','Sports bras','Sports bottoms','Gym sets','Tights','Bike shorts'],
-  'Outerwear':  ['Coats','Jackets','Blazers','Vests','Puffer jackets','Leather jackets','Trench coats'],
-  'Shoes':      ['Sneakers','Heels','Boots','Ankle boots','Sandals','Flats','Mules','Loafers'],
-  'Bags':       ['Tote','Shoulder bag','Crossbody','Clutch','Backpack','Belt bag'],
-  'Accessories':['Jewellery','Scarves','Belts','Hats','Sunglasses','Hair accessories'],
-  'Swimwear':   ['Bikini tops','Bikini bottoms','One-piece','Coverups'],
-  'Lingerie':   ['Bras','Underwear','Sleepwear'],
+  'Tops':          ['T-shirts','Long sleeve tops','Shirts','Blouses','Knits & Jumpers','Tanks & Singlets','Crop tops','Hoodies & Sweatshirts','Bodysuit'],
+  'Bottoms':       ['Jeans','Trousers','Shorts','Skirts','Skort','Mini skirts','Midi skirts','Maxi skirts','Flares','Leggings'],
+  'Dresses':       ['Mini','Midi','Maxi','Slip','Shirt dress','Wrap dress','Sundress','Romper'],
+  'Activewear':    ['Sports tops','Sports bras','Sports bottoms','Gym sets','Tights','Bike shorts'],
+  'Outerwear':     ['Coats','Jackets','Blazers','Vests','Puffer jackets','Leather jackets','Trench coats'],
+  'Shoes':         ['Sneakers','Heels','Boots','Ankle boots','Sandals','Flats','Mules','Loafers'],
+  'Bags':          ['Tote','Shoulder bag','Crossbody','Clutch','Backpack','Belt bag'],
+  'Accessories':   ['Jewellery','Scarves','Belts','Hats','Sunglasses','Hair accessories','Socks'],
+  'Swimwear':      ['Bikini tops','Bikini bottoms','One-piece','Coverups'],
+  'Lingerie':      ['Bras','Underwear'],
+  'Pyjamas':       ['Pyjama set','Pyjama top','Pyjama bottoms','Nightgown','Dressing gown','Slippers','Sleep shorts'],
 };
 const CATS      = ['All',...Object.keys(CATEGORY_MAP)];
 
@@ -179,7 +180,7 @@ const OCC_C = {
   'Warm weather':  {bg:'#FFF3E0',b:'#FFB347',t:'#8A5A00'},
   'Summer':        {bg:'#FEF0F0',b:'#FF8C69',t:'#8A3A20'},
 };
-const CAT_EMOJI = {Tops:'👕',Bottoms:'👖',Dresses:'👗',Activewear:'🏃',Outerwear:'🧥',Shoes:'👟',Bags:'👜',Accessories:'💍',Swimwear:'👙',Lingerie:'🩱'};
+const CAT_EMOJI = {Tops:'👕',Bottoms:'👖',Dresses:'👗',Activewear:'🏃',Outerwear:'🧥',Shoes:'👟',Bags:'👜',Accessories:'💍',Swimwear:'👙',Lingerie:'🩱',Pyjamas:'🌙'};
 const NEED_LBL  = ['','Nice to have','Want it','Really want it','Need it','Genuinely need'];
 const OUTFIT_TAGS = [
   'Casual','Going out','Dinner','Date night','Event','Festival','Work','Beach','Gym',
@@ -881,7 +882,7 @@ function EditWardrobeSheet({item,onSave,onCancel,stores,onAddStore,wardrobe=[],e
     <FRow><FGrp label="Total wears" style={{flex:1,marginTop:4}}><FInp value={f.wearCount} type="number" onChange={e=>up({wearCount:parseInt(e.target.value)||0})}/></FGrp><div style={{flex:1,marginTop:4}}><DateField label="Last worn" value={f.lastWornDate} onChange={v=>up({lastWornDate:v})}/></div></FRow>
   </Sheet>;
 }
-function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete}){
+function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete,onToggleFav}){
   const [showLog,setShowLog]=useState(false);
   return <Sheet title={item.name||'Untitled'} onClose={onClose}>
     <div style={{width:'100%',maxHeight:'32vh',background:'#fff',display:'flex',alignItems:'center',justifyContent:'center',borderRadius:14,marginBottom:14,overflow:'hidden',flexShrink:0}}>
@@ -891,6 +892,7 @@ function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete}){
     <DetailRow label="Category" value={item.category}/><DetailRow label="Type" value={item.subcategory}/><DetailRow label="Brand" value={item.brand}/><DetailRow label="Store" value={item.store}/><DetailRow label="Colour" value={(item.colors||[item.color]).filter(Boolean).join(", ")||null}/><DetailRow label="Size" value={item.sizeLabel||item.size}/><DetailRow label="Date bought" value={item.dateBought ? `${formatDate(item.dateBought)}${timeSincePurchase(item.dateBought) ? " · " + timeSincePurchase(item.dateBought) : ""}` : null}/><DetailRow label="Last worn" value={item.lastWornDate?`${formatDate(item.lastWornDate)} (${daysAgoLabel(item.lastWornDate)})`:'Never worn'}/><DetailRow label="Total wears" value={item.wearCount||0}/><DetailRow label="Occasions" value={(item.occasions||[]).join(', ')||null}/><DetailRow label="Notes" value={item.notes}/>
     <div style={{display:'flex',gap:8,marginTop:14}}>
       <button onClick={()=>setShowLog(true)} style={{flex:1,padding:12,background:'var(--green)',color:'#fff',border:'none',borderRadius:12,fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>+ Log wear</button>
+      <button onClick={onToggleFav} style={{padding:'12px 14px',border:'1.5px solid var(--border)',borderRadius:12,background:'none',fontSize:18,cursor:'pointer',lineHeight:1}}>{item.favourite?'★':'☆'}</button>
       <button onClick={onEdit} style={{flex:1,padding:12,border:'1.5px solid var(--border)',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Edit</button>
       <button onClick={onDelete} style={{padding:'12px 14px',border:'1.5px solid #EAC8C8',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',color:'var(--red)',fontFamily:"'Jost',sans-serif"}}>🗑</button>
     </div>
@@ -1160,13 +1162,17 @@ function OutfitDetailSheet({outfit,wardrobe,onClose,onEdit,onDelete,onMarkWorn})
 }
 
 // ── Cards ─────────────────────────────────────────────────────────────────────
-function WardrobeCard({item,onClick}){
+function WardrobeCard({item,onClick,onToggleFav}){
   const needsInfo = !item.photoUrl||!item.name||!item.category||!item.size||!item.store||(Array.isArray(item.colors)?item.colors.length===0:!item.color);
   return <div className={`icard${needsInfo?' incomplete':''}`} onClick={onClick}>
     <div className="iphoto">
       {item.photoUrl?<img src={item.photoUrl} alt={item.name}/>:<div className="no-photo"><span style={{fontSize:22,opacity:.3}}>{CAT_EMOJI[item.category]||'👗'}</span><span style={{fontSize:9,color:'var(--muted)',marginTop:2}}>{item.subcategory||item.category}</span></div>}
       {needsInfo&&<span className="badge-warn">needs info</span>}
       {item.lastWornDate&&<span className="badge-worn">{daysAgoLabel(item.lastWornDate)}</span>}
+      {onToggleFav&&<span onClick={e=>{e.stopPropagation();onToggleFav(item);}}
+        style={{position:'absolute',top:5,left:5,fontSize:15,lineHeight:1,cursor:'pointer',color:item.favourite?'#C9A050':'rgba(255,255,255,.8)',filter:'drop-shadow(0 1px 2px rgba(0,0,0,.4))'}}>
+        {item.favourite?'★':'☆'}
+      </span>}
     </div>
     <div className="iinfo"><div className="iname">{item.name||'Untitled'}</div><div className="imeta">{item.brand||item.store||item.color||'—'}</div>{item.size&&<div className="isize">{item.sizeLabel||item.size}</div>}</div>
   </div>;
@@ -1201,6 +1207,11 @@ function App(){
   const [catFilter,setCat]  = useState('All');
   const [subcatFilter,setSubcat] = useState('All');
   const [colourFilter,setColourFilter] = useState('All');
+  const [showFavsOnly,setShowFavsOnly] = useState(false);
+  const [wardrobeSort,setWardrobeSort] = useState('default');
+  const [wishSort,setWishSort] = useState('rating');
+  const [showWardrobeSort,setShowWardrobeSort] = useState(false);
+  const [showWishSort,setShowWishSort] = useState(false);
   const [wlFilter,setWlF]   = useState('All');
   const [search,setSearch]  = useState('');
   const [openStore,setOS]   = useState(null);
@@ -1212,6 +1223,8 @@ function App(){
   const [extraBrands,setExtraBrands] = useState([]);
   const [extraColours,setExtraColours] = useState([]);
   const [selOutfitTag,setSelOutfitTag] = useState(null);
+  const [outfitOrder,setOutfitOrder] = useState([]);
+  const dragOutfit = useRef(null);
   const addBrand = name => { if(!extraBrands.includes(name)) setExtraBrands(p=>[...p,name]); };
   const addColour = c => { if(c&&!extraColours.includes(c)) setExtraColours(p=>[...p,c]); };
   const [showAddW,setShowAddW]    = useState(false);
@@ -1241,6 +1254,7 @@ function App(){
   async function saveItem(i){const complete=!!(i.name&&i.category&&(i.size||i.brand));const u={...i,complete};try{await sb.upd('wardrobe',i.id,toRow(u));setW(p=>p.map(x=>x.id===i.id?u:x));setSelItem(u);}catch(e){console.error(e);}setEditItem(false);}
   async function delItem(id){try{await sb.del('wardrobe',id);setW(p=>p.filter(x=>x.id!==id));}catch(e){console.error(e);}setSelItem(null);}
   async function logWear(item,date){const u={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};try{await sb.upd('wardrobe',item.id,{last_worn_date:date,wear_count:u.wearCount});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
+  async function toggleFavourite(item){const u={...item,favourite:!item.favourite};try{await sb.upd('wardrobe',item.id,{favourite:u.favourite});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
 
   async function addWish(i){try{await sb.ins('wishlist',toWR(i));setWL(p=>[...p,i]);}catch(e){console.error(e);}setShowAddWL(false);}
   async function saveWish(i){try{await sb.upd('wishlist',i.id,toWR(i));setWL(p=>p.map(x=>x.id===i.id?i:x));setSelWish(i);}catch(e){console.error(e);}setEditWish(false);}
@@ -1257,8 +1271,42 @@ function App(){
   }
 
   const wardrobeColours = [...new Set(wardrobe.flatMap(i=>i.colors||[]).filter(Boolean))];
-  const fW=wardrobe.filter(i=>{const mc=catFilter==='All'||i.category===catFilter;const sc=subcatFilter==='All'||i.subcategory===subcatFilter;const cc=colourFilter==='All'||(i.colors||[]).some(c=>getColourGroup(c)===colourFilter);const q=search.toLowerCase();return mc&&sc&&cc&&(!q||[i.name,i.brand,...(i.colors||[]),i.store,i.category,i.subcategory].some(s=>(s||'').toLowerCase().includes(q)));});
-  const fWL=wishlist.filter(i=>(wlFilter==='All'||i.category===wlFilter)&&(!search||(i.name||'').toLowerCase().includes(search.toLowerCase())||(i.store||'').toLowerCase().includes(search.toLowerCase()))).sort((a,b)=>(b.rating||3)-(a.rating||3));
+  const fWBase=wardrobe.filter(i=>{
+    const mc=catFilter==='All'||i.category===catFilter;
+    const sc=subcatFilter==='All'||i.subcategory===subcatFilter;
+    const cc=colourFilter==='All'||(i.colors||[]).some(c=>getColourGroup(c)===colourFilter);
+    const fav=!showFavsOnly||i.favourite;
+    const q=search.toLowerCase();
+    return mc&&sc&&cc&&fav&&(!q||[i.name,i.brand,...(i.colors||[]),i.store,i.category,i.subcategory].some(s=>(s||'').toLowerCase().includes(q)));
+  });
+  const fW = [...fWBase].sort((a,b)=>{
+    switch(wardrobeSort){
+      case 'az': return (a.name||'').localeCompare(b.name||'');
+      case 'za': return (b.name||'').localeCompare(a.name||'');
+      case 'brand': return (a.brand||'').localeCompare(b.brand||'');
+      case 'store': return (a.store||'').localeCompare(b.store||'');
+      case 'most_worn': return (b.wearCount||0)-(a.wearCount||0);
+      case 'least_worn': return (a.wearCount||0)-(b.wearCount||0);
+      case 'recent_worn': return (b.lastWornDate||'0').localeCompare(a.lastWornDate||'0');
+      case 'newest': return (b.dateBought||'0').localeCompare(a.dateBought||'0');
+      case 'oldest': return (a.dateBought||'9').localeCompare(b.dateBought||'9');
+      case 'favs': return (b.favourite?1:0)-(a.favourite?1:0);
+      default: return 0;
+    }
+  });
+  const fWL=[...wishlist.filter(i=>(wlFilter==='All'||i.category===wlFilter)&&(!search||(i.name||'').toLowerCase().includes(search.toLowerCase())||(i.store||'').toLowerCase().includes(search.toLowerCase())))].sort((a,b)=>{
+    switch(wishSort){
+      case 'az': return (a.name||'').localeCompare(b.name||'');
+      case 'za': return (b.name||'').localeCompare(a.name||'');
+      case 'store': return (a.store||'').localeCompare(b.store||'');
+      case 'brand': return (a.brand||'').localeCompare(b.brand||'');
+      case 'price_asc': return (parseFloat(a.price)||0)-(parseFloat(b.price)||0);
+      case 'price_desc': return (parseFloat(b.price)||0)-(parseFloat(a.price)||0);
+      case 'rating_asc': return (a.rating||3)-(b.rating||3);
+      case 'added': return (b.addedDate||'').localeCompare(a.addedDate||'');
+      default: return (b.rating||3)-(a.rating||3); // highest rated first
+    }
+  });
   // Item needs attention if missing photo, name, category, size, store, or colour
   const isIncomplete = i => !i.photoUrl||!i.name||!i.category||!i.size||!i.store||(Array.isArray(i.colors)?i.colors.length===0:!i.color);
   const incomplete=wardrobe.filter(isIncomplete);
@@ -1293,7 +1341,14 @@ function App(){
       <div className="scroll">
 
         {tab==='wardrobe'&&<>
-          <div className="filterrow">{CATS.map(c=><button key={c} className={`chip${catFilter===c?' active':''}`} onClick={()=>{setCat(c);setSubcat('All');setColourFilter('All');}}>{c}</button>)}</div>
+          <div className="filterrow">
+            {CATS.map(c=><button key={c} className={`chip${catFilter===c?' active':''}`} onClick={()=>{setCat(c);setSubcat('All');setColourFilter('All');}}>{c}</button>)}
+            <button className={`chip${showFavsOnly?' active':''}`} onClick={()=>setShowFavsOnly(p=>!p)}>★ Favourites</button>
+            <button className="chip" onClick={()=>setShowWardrobeSort(p=>!p)} style={{marginLeft:4}}>Sort {wardrobeSort!=='default'?'·':''}</button>
+          </div>
+          {showWardrobeSort&&<div style={{display:'flex',flexWrap:'wrap',gap:5,padding:'4px 16px 8px'}}>
+            {[['default','Default'],['az','A–Z'],['za','Z–A'],['brand','Brand'],['store','Store'],['most_worn','Most worn'],['least_worn','Least worn'],['recent_worn','Recently worn'],['newest','Newest purchase'],['oldest','Oldest purchase'],['favs','Favourites first']].map(([v,l])=><button key={v} onClick={()=>{setWardrobeSort(v);setShowWardrobeSort(false);}} style={{padding:'5px 11px',borderRadius:20,fontSize:11,border:'1.5px solid',borderColor:wardrobeSort===v?'var(--ink)':'var(--border)',background:wardrobeSort===v?'var(--ink)':'#fff',color:wardrobeSort===v?'#fff':'var(--muted)',cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>{l}</button>)}
+          </div>}
           {catFilter!=='All'&&CATEGORY_MAP[catFilter]&&<div className="filterrow" style={{paddingTop:2}}>
             <button className={`chip${subcatFilter==='All'?' active':''}`} onClick={()=>setSubcat('All')}>All {catFilter}</button>
             {CATEGORY_MAP[catFilter].map(s=><button key={s} className={`chip${subcatFilter===s?' active':''}`} onClick={()=>setSubcat(s)}>{s}</button>)}
@@ -1316,7 +1371,7 @@ function App(){
             </div>
           </>}
           {fW.length===0?<div className="empty"><div style={{fontSize:40,marginBottom:10}}>🧺</div><div className="empty-t">Your wardrobe is empty</div><div className="empty-s">Tap + to add your first item.</div></div>
-          :<>{fW.some(isIncomplete)&&<><div className="seclbl">Needs info</div><div className="grid">{fW.filter(isIncomplete).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}}/>)}</div></>}{fW.some(i=>!isIncomplete(i))&&<><div className="seclbl">{catFilter==='All'?'All items':catFilter} · {fW.filter(i=>!isIncomplete(i)).length}</div><div className="grid">{fW.filter(i=>!isIncomplete(i)).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}}/>)}</div></>}</>}
+          :<>{fW.some(isIncomplete)&&<><div className="seclbl">Needs info</div><div className="grid">{fW.filter(isIncomplete).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}} onToggleFav={toggleFavourite}/>)}</div></>}{fW.some(i=>!isIncomplete(i))&&<><div className="seclbl">{catFilter==='All'?'All items':catFilter} · {fW.filter(i=>!isIncomplete(i)).length}</div><div className="grid">{fW.filter(i=>!isIncomplete(i)).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}} onToggleFav={toggleFavourite}/>)}</div></>}</>}
         </>}
 
         {tab==='outfits'&&<>
@@ -1330,11 +1385,35 @@ function App(){
           })()}
           {outfits.length===0?<div className="empty"><div style={{fontSize:40,marginBottom:10}}>✦</div><div className="empty-t">No saved outfits yet</div><div className="empty-s">Tap + to build your first outfit.</div></div>
           :<><div className="seclbl" style={{paddingTop:10}}>Saved outfits · {outfits.length}</div>
-          <div className="outfit-masonry">{outfits.filter(o=>!selOutfitTag||(o.tags||[]).includes(selOutfitTag)).map(outfit=>{const items=outfit.itemIds.map(id=>wardrobe.find(w=>w.id===id)).filter(Boolean);return<div key={outfit.id} className="outfit-card" onClick={()=>{setSelOutfit(outfit);setEditOutfit(false);}}><OutfitThumbnail items={items}/><div className="outfit-info"><div className="outfit-name">{outfit.name}</div><div className="outfit-meta">{items.length} piece{items.length!==1?'s':''}{outfit.occasion?` · ${outfit.occasion}`:''}{outfit.lastWornDate?` · ${daysAgoLabel(outfit.lastWornDate)}`:''}</div></div></div>;})}</div></>}
+          {(()=>{
+              const ordered = outfitOrder.length ? [...outfits].sort((a,b)=>{ const ai=outfitOrder.indexOf(a.id); const bi=outfitOrder.indexOf(b.id); return (ai===-1?999:ai)-(bi===-1?999:bi); }) : outfits;
+              const filtered = ordered.filter(o=>!selOutfitTag||(o.tags||[]).includes(selOutfitTag));
+              return <div className="outfit-masonry">{filtered.map(outfit=>{const items=outfit.itemIds.map(id=>wardrobe.find(w=>w.id===id)).filter(Boolean);return<div key={outfit.id} className="outfit-card"
+                  draggable
+                  onDragStart={()=>{ dragOutfit.current=outfit.id; }}
+                  onDragOver={e=>e.preventDefault()}
+                  onDrop={()=>{
+                    if(!dragOutfit.current||dragOutfit.current===outfit.id)return;
+                    const ids=filtered.map(o=>o.id);
+                    const from=ids.indexOf(dragOutfit.current);
+                    const to=ids.indexOf(outfit.id);
+                    const newOrder=[...ids];
+                    newOrder.splice(from,1);
+                    newOrder.splice(to,0,dragOutfit.current);
+                    setOutfitOrder(newOrder);
+                    dragOutfit.current=null;
+                  }}
+                  onClick={()=>{setSelOutfit(outfit);setEditOutfit(false);}}><OutfitThumbnail items={items}/><div className="outfit-info"><div className="outfit-name">{outfit.name}</div><div className="outfit-meta">{items.length} piece{items.length!==1?'s':''}{outfit.occasion?` · ${outfit.occasion}`:''}{outfit.lastWornDate?` · ${daysAgoLabel(outfit.lastWornDate)}`:''}</div></div></div>;})}</div></>}
         </>}
 
         {tab==='wishlist'&&<>
-          <div className="filterrow">{['All',...Object.keys(CATEGORY_MAP)].map(c=><button key={c} className={`chip${wlFilter===c?' active':''}`} onClick={()=>setWlF(c)}>{c}</button>)}</div>
+          <div className="filterrow">
+            {['All',...Object.keys(CATEGORY_MAP)].map(c=><button key={c} className={`chip${wlFilter===c?' active':''}`} onClick={()=>setWlF(c)}>{c}</button>)}
+            <button className="chip" onClick={()=>setShowWishSort(p=>!p)} style={{marginLeft:4}}>Sort {wishSort!=='rating'?'·':''}</button>
+          </div>
+          {showWishSort&&<div style={{display:'flex',flexWrap:'wrap',gap:5,padding:'4px 16px 8px'}}>
+            {[['rating','Highest rated'],['rating_asc','Lowest rated'],['az','A–Z'],['za','Z–A'],['store','Store'],['brand','Brand'],['price_desc','Price high–low'],['price_asc','Price low–high'],['added','Recently added']].map(([v,l])=><button key={v} onClick={()=>{setWishSort(v);setShowWishSort(false);}} style={{padding:'5px 11px',borderRadius:20,fontSize:11,border:'1.5px solid',borderColor:wishSort===v?'var(--ink)':'var(--border)',background:wishSort===v?'var(--ink)':'#fff',color:wishSort===v?'#fff':'var(--muted)',cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>{l}</button>)}
+          </div>}
           {fWL.length===0?<div className="empty"><div style={{fontSize:40,marginBottom:10}}>🛍️</div><div className="empty-t">Nothing on the wishlist yet</div><div className="empty-s">Tap + to add items.</div></div>
           :<div className="wish-grid">{fWL.map(i=><WishCard key={i.id} item={i} similar={findSimilar(i,wardrobe)} onRate={r=>rateWish(i.id,r)} onClick={()=>{setSelWish(i);setEditWish(false);}}/>)}</div>}
         </>}
@@ -1473,7 +1552,7 @@ function App(){
   {showAddW   && <AddWardrobeSheet  onSave={addItem}  onClose={()=>setShowAddW(false)}  stores={stores} onAddStore={addStore} wardrobe={wardrobe} extraBrands={extraBrands} onAddBrand={addBrand} wardrobeColours={wardrobeColours} extraColours={extraColours} onAddColour={addColour}/>}
   {showAddWL  && <AddWishSheet      onSave={addWish}  onClose={()=>setShowAddWL(false)} stores={stores} onAddStore={addStore}/>}
   {showAddO   && <OutfitBuilderSheet wardrobe={wardrobe} outfit={null} onSave={saveOutfit} onClose={()=>setShowAddO(false)}/>}
-  {selItem&&!editItem  && <WardrobeDetailSheet item={selItem} onClose={()=>setSelItem(null)} onEdit={()=>setEditItem(true)} onLogWear={logWear} onDelete={()=>delItem(selItem.id)}/>}
+  {selItem&&!editItem  && <WardrobeDetailSheet item={selItem} onClose={()=>setSelItem(null)} onEdit={()=>setEditItem(true)} onLogWear={logWear} onDelete={()=>delItem(selItem.id)} onToggleFav={()=>toggleFavourite(selItem)}/>}
   {selItem&&editItem   && <EditWardrobeSheet   item={selItem} onSave={saveItem} onCancel={()=>setEditItem(false)} stores={stores} onAddStore={addStore} wardrobe={wardrobe} extraBrands={extraBrands} onAddBrand={addBrand} wardrobeColours={wardrobeColours} extraColours={extraColours} onAddColour={addColour}/>}
   {selWish&&!editWish  && <WishDetailSheet item={selWish} similar={findSimilar(selWish,wardrobe)} onClose={()=>setSelWish(null)} onEdit={()=>setEditWish(true)} onDelete={()=>delWish(selWish.id)} onRate={r=>rateWish(selWish.id,r)} onMoveToWardrobe={()=>bought(selWish)}/>}
   {selWish&&editWish   && <EditWishSheet   item={selWish} onSave={saveWish} onCancel={()=>setEditWish(false)} stores={stores} onAddStore={addStore}/>}
