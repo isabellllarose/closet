@@ -1420,6 +1420,9 @@ function App(){
                 })}
               </div>;
             })()}
+          </>}
+        </>}
+
         {tab==='wishlist'&&<>
           <div className="filterrow">
             {['All',...Object.keys(CATEGORY_MAP)].map(c=><button key={c} className={`chip${wlFilter===c?' active':''}`} onClick={()=>setWlF(c)}>{c}</button>)}
