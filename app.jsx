@@ -1386,26 +1386,40 @@ function App(){
           {outfits.length===0?<div className="empty"><div style={{fontSize:40,marginBottom:10}}>✦</div><div className="empty-t">No saved outfits yet</div><div className="empty-s">Tap + to build your first outfit.</div></div>
           :<><div className="seclbl" style={{paddingTop:10}}>Saved outfits · {outfits.length}</div>
           {(()=>{
-              const ordered = outfitOrder.length ? [...outfits].sort((a,b)=>{ const ai=outfitOrder.indexOf(a.id); const bi=outfitOrder.indexOf(b.id); return (ai===-1?999:ai)-(bi===-1?999:bi); }) : outfits;
+              const ordered = outfitOrder.length
+                ? [...outfits].sort((a,b)=>{const ai=outfitOrder.indexOf(a.id);const bi=outfitOrder.indexOf(b.id);return(ai===-1?999:ai)-(bi===-1?999:bi);})
+                : outfits;
               const filtered = ordered.filter(o=>!selOutfitTag||(o.tags||[]).includes(selOutfitTag));
-              return <div className="outfit-masonry">{filtered.map(outfit=>{const items=outfit.itemIds.map(id=>wardrobe.find(w=>w.id===id)).filter(Boolean);return<div key={outfit.id} className="outfit-card"
-                  draggable
-                  onDragStart={()=>{ dragOutfit.current=outfit.id; }}
-                  onDragOver={e=>e.preventDefault()}
-                  onDrop={()=>{
-                    if(!dragOutfit.current||dragOutfit.current===outfit.id)return;
-                    const ids=filtered.map(o=>o.id);
-                    const from=ids.indexOf(dragOutfit.current);
-                    const to=ids.indexOf(outfit.id);
-                    const newOrder=[...ids];
-                    newOrder.splice(from,1);
-                    newOrder.splice(to,0,dragOutfit.current);
-                    setOutfitOrder(newOrder);
-                    dragOutfit.current=null;
-                  }}
-                  onClick={()=>{setSelOutfit(outfit);setEditOutfit(false);}}><OutfitThumbnail items={items}/><div className="outfit-info"><div className="outfit-name">{outfit.name}</div><div className="outfit-meta">{items.length} piece{items.length!==1?'s':''}{outfit.occasion?` · ${outfit.occasion}`:''}{outfit.lastWornDate?` · ${daysAgoLabel(outfit.lastWornDate)}`:''}</div></div></div>;})}</div></>}
-        </>}
-
+              return <div className="outfit-masonry">
+                {filtered.map(outfit=>{
+                  const items=outfit.itemIds.map(id=>wardrobe.find(w=>w.id===id)).filter(Boolean);
+                  return <div key={outfit.id} className="outfit-card"
+                    draggable
+                    onDragStart={()=>{ dragOutfit.current=outfit.id; }}
+                    onDragOver={e=>e.preventDefault()}
+                    onDrop={()=>{
+                      if(!dragOutfit.current||dragOutfit.current===outfit.id)return;
+                      const ids=filtered.map(o=>o.id);
+                      const from=ids.indexOf(dragOutfit.current);
+                      const to=ids.indexOf(outfit.id);
+                      const newOrder=[...ids];
+                      newOrder.splice(from,1);
+                      newOrder.splice(to,0,dragOutfit.current);
+                      setOutfitOrder(newOrder);
+                      dragOutfit.current=null;
+                    }}
+                    onClick={()=>{setSelOutfit(outfit);setEditOutfit(false);}}>
+                    <OutfitThumbnail items={items}/>
+                    <div className="outfit-info">
+                      <div style={{display:'flex',flexWrap:'wrap',gap:3,marginBottom:3}}>
+                        {(outfit.tags||[]).slice(0,3).map(t=><span key={t} style={{fontSize:9,padding:'2px 6px',borderRadius:10,background:'var(--cream)',border:'1px solid var(--border)'}}>{t}</span>)}
+                      </div>
+                      <div className="outfit-meta">{items.length} piece{items.length!==1?'s':''}{outfit.lastWornDate?` · ${daysAgoLabel(outfit.lastWornDate)}`:''}</div>
+                    </div>
+                  </div>;
+                })}
+              </div>;
+            })()}
         {tab==='wishlist'&&<>
           <div className="filterrow">
             {['All',...Object.keys(CATEGORY_MAP)].map(c=><button key={c} className={`chip${wlFilter===c?' active':''}`} onClick={()=>setWlF(c)}>{c}</button>)}
