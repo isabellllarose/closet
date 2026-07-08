@@ -87,8 +87,8 @@ function isOverdue(iso, n=30) {
 
 // ── Data helpers ──────────────────────────────────────────────────────────────
 const uid    = () => `${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
-const toRow  = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,brand:i.brand||null,store:i.store||null,colors:Array.isArray(i.colors)?i.colors:(i.color?[i.color]:[]),size:i.size||null,size_label:i.sizeLabel||i.size||null,photo_url:i.photoUrl||null,occasions:i.occasions||[],date_bought:i.dateBought||null,last_worn_date:i.lastWornDate||null,wear_count:i.wearCount||0,notes:i.notes||null,complete:!!i.complete,favourite:!!i.favourite});
-const fromRow= r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,brand:r.brand,store:r.store,colors:Array.isArray(r.colors)?r.colors:(r.color?[r.color]:[]),color:Array.isArray(r.colors)&&r.colors.length?r.colors[0]:(r.color||null),size:r.size,sizeLabel:r.size_label,photoUrl:r.photo_url,occasions:r.occasions||[],dateBought:r.date_bought,lastWornDate:r.last_worn_date,wearCount:r.wear_count||0,notes:r.notes,complete:r.complete,favourite:!!r.favourite});
+const toRow  = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,brand:i.brand||null,store:i.store||null,colors:Array.isArray(i.colors)?i.colors:(i.color?[i.color]:[]),size:i.size||null,size_label:i.sizeLabel||i.size||null,photo_url:i.photoUrl||null,occasions:i.occasions||[],date_bought:i.dateBought||null,last_worn_date:i.lastWornDate||null,wear_count:i.wearCount||0,notes:i.notes||null,complete:!!i.complete,favourite:!!i.favourite,archived:!!i.archived,price:i.price||null});
+const fromRow= r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,brand:r.brand,store:r.store,colors:Array.isArray(r.colors)?r.colors:(r.color?[r.color]:[]),color:Array.isArray(r.colors)&&r.colors.length?r.colors[0]:(r.color||null),size:r.size,sizeLabel:r.size_label,photoUrl:r.photo_url,occasions:r.occasions||[],dateBought:r.date_bought,lastWornDate:r.last_worn_date,wearCount:r.wear_count||0,notes:r.notes,complete:r.complete,favourite:!!r.favourite,archived:!!r.archived,price:r.price||null});
 const toWR   = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,store:i.store||null,brand:i.brand||null,url:i.url||null,price:i.price||null,orig_price:i.origPrice||null,on_sale:!!i.onSale,rating:i.rating||3,photo_urls:i.photoUrls||[],color:i.color||null,notes:i.notes||null,added_date:i.addedDate||today2()});
 const fromWR = r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,store:r.store,brand:r.brand,url:r.url,price:r.price,origPrice:r.orig_price,onSale:r.on_sale,rating:r.rating||3,photoUrls:Array.isArray(r.photo_urls)?r.photo_urls:(r.photo_urls?[r.photo_urls]:[]),color:r.color,notes:r.notes,addedDate:r.added_date});
 const toOR   = o => ({id:o.id,tags:o.tags||[],notes:o.notes||null,item_ids:o.itemIds||[],item_positions:o.positions||null,wear_count:o.wearCount||0,last_worn_date:o.lastWornDate||null});
@@ -104,7 +104,7 @@ const CATEGORY_MAP = {
   'Tops':          ['T-shirts','Long sleeve tops','Shirts','Blouses','Knits & Jumpers','Tanks & Singlets','Vest top','Tube top','Crop tops','Off-shoulder top','Corset top','Hoodies & Sweatshirts','Bodysuit'],
   'Bottoms':       ['Jeans','Trousers','Shorts','Skirts','Skort','Mini skirts','Midi skirts','Maxi skirts','Flares','Leggings','Tracksuit pants','Cargo pants'],
   'Dresses':       ['Mini','Midi','Maxi','Slip','Bodycon','Shirt dress','Wrap dress','Sundress','Strapless','Corset dress','Romper'],
-  'Activewear':    ['Sports tops','Sports bras','Sports bottoms','Shorts','Gym sets','Tracksuit set','Sports jacket','Tights','Bike shorts'],
+  'Activewear':    ['Sports tops','Sports bras','Sports bottoms','Shorts','Gym sets','Tracksuit set','Sports jacket','Leggings','Flares','Bike shorts'],
   'Outerwear':     ['Coats','Jackets','Blazers','Shacket','Vests','Gilet','Puffer jackets','Leather jackets','Trench coats'],
   'Shoes':         ['Sneakers','Heels','Platforms','Boots','Ankle boots','Chelsea boots','Knee-high boots','Sandals','Thongs & Slides','Flats','Mules','Loafers','Mary Janes'],
   'Bags':          ['Tote','Shoulder bag','Crossbody','Clutch','Mini bag','Barrel bag','Backpack','Belt bag'],
@@ -860,6 +860,7 @@ function WardrobeFields({d,up,stores,onAddStore,wardrobe=[],extraBrands=[],onAdd
     </div>
     <FRow><FGrp label="Brand" style={{flex:1}}><BrandPicker value={d.brand||''} onChange={v=>up({brand:v})} wardrobe={wardrobe} extraBrands={extraBrands} onAddBrand={onAddBrand}/></FGrp><FGrp label="Colours" style={{flex:1}}><ColourPicker values={d.colors||[]} onChange={v=>up({colors:v,color:v[0]||null})} wardrobeColours={wardrobeColours} extraColours={extraColours} onAddColour={onAddColour}/></FGrp></FRow>
     <FRow><FGrp label="Size" style={{flex:1}}><FInp value={d.size} placeholder="S / 10 / 27" onChange={e=>up({size:e.target.value,sizeLabel:e.target.value})}/></FGrp><FGrp label="Store" style={{flex:1}}><StorePicker value={d.store||''} onChange={v=>up({store:v})} stores={stores} onAddStore={onAddStore}/></FGrp></FRow>
+    <FRow><FGrp label="Price paid (A$)" style={{flex:1}}><FInp value={d.price} placeholder="59.95" type="number" onChange={e=>up({price:e.target.value})}/></FGrp><div style={{flex:1}}/></FRow>
     <DateField label="Date bought" value={d.dateBought} onChange={v=>up({dateBought:v})}/>
     <FGrp label="Notes"><FInp value={d.notes} placeholder="Fit, how it runs, where you wear it…" onChange={e=>up({notes:e.target.value})}/></FGrp>
     <FGrp label="Occasions"><OccChips selected={d.occasions||[]} onChange={o=>up({occasions:o})}/></FGrp>
@@ -882,7 +883,7 @@ function EditWardrobeSheet({item,onSave,onCancel,stores,onAddStore,wardrobe=[],e
     <FRow><FGrp label="Total wears" style={{flex:1,marginTop:4}}><FInp value={f.wearCount} type="number" onChange={e=>up({wearCount:parseInt(e.target.value)||0})}/></FGrp><div style={{flex:1,marginTop:4}}><DateField label="Last worn" value={f.lastWornDate} onChange={v=>up({lastWornDate:v})}/></div></FRow>
   </Sheet>;
 }
-function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete,onToggleFav}){
+function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete,onToggleFav,onToggleArchive}){
   const [showLog,setShowLog]=useState(false);
   return <Sheet title={item.name||'Untitled'} onClose={onClose}>
     <div style={{width:'100%',background:'#fff',borderRadius:14,marginBottom:14,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
@@ -896,6 +897,9 @@ function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete,onToggleFav
       <button onClick={onEdit} style={{flex:1,padding:12,border:'1.5px solid var(--border)',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Edit</button>
       <button onClick={onDelete} style={{padding:'12px 14px',border:'1.5px solid #EAC8C8',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',color:'var(--red)',fontFamily:"'Jost',sans-serif"}}>🗑</button>
     </div>
+    <button onClick={onToggleArchive} style={{width:'100%',marginTop:8,padding:'10px',border:'1.5px solid var(--border)',borderRadius:12,background:'none',fontSize:12,cursor:'pointer',fontFamily:"'Jost',sans-serif",color:'var(--muted)',textAlign:'center'}}>
+      {item.archived?'↩ Restore to wardrobe':'📦 Mark as sold / donated'}
+    </button>
     {showLog&&<LogWearModal onLog={date=>onLogWear(item,date)} onClose={()=>setShowLog(false)}/>}
   </Sheet>;
 }
@@ -1216,6 +1220,7 @@ function App(){
   const [search,setSearch]  = useState('');
   const [openStore,setOS]   = useState(null);
   const [rewearModal,setRewearModal] = useState(null); // 'never' | 'overdue' | null
+  const [showArchive,setShowArchive] = useState(false);
   const [hiddenGuides,setHiddenGuides] = useState(new Set());
   const [showManageGuides,setShowManageGuides] = useState(false);
   const [askQ,setAskQ]      = useState('');
@@ -1256,6 +1261,7 @@ function App(){
   async function delItem(id){try{await sb.del('wardrobe',id);setW(p=>p.filter(x=>x.id!==id));}catch(e){console.error(e);}setSelItem(null);}
   async function logWear(item,date){const u={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};try{await sb.upd('wardrobe',item.id,{last_worn_date:date,wear_count:u.wearCount});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
   async function toggleFavourite(item){const u={...item,favourite:!item.favourite};try{await sb.upd('wardrobe',item.id,{favourite:u.favourite});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
+  async function toggleArchive(item){const u={...item,archived:!item.archived};try{await sb.upd('wardrobe',item.id,{archived:u.archived});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
 
   async function addWish(i){try{await sb.ins('wishlist',toWR(i));setWL(p=>[...p,i]);}catch(e){console.error(e);}setShowAddWL(false);}
   async function saveWish(i){try{await sb.upd('wishlist',i.id,toWR(i));setWL(p=>p.map(x=>x.id===i.id?i:x));setSelWish(i);}catch(e){console.error(e);}setEditWish(false);}
@@ -1271,8 +1277,10 @@ function App(){
     for(const id of outfit.itemIds){const item=wardrobe.find(w=>w.id===id);if(!item)continue;const ui={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};try{await sb.upd('wardrobe',id,{last_worn_date:date,wear_count:ui.wearCount});setW(p=>p.map(x=>x.id===id?ui:x));}catch(e){console.error(e);}}
   }
 
-  const wardrobeColours = [...new Set(wardrobe.flatMap(i=>i.colors||[]).filter(Boolean))];
-  const fWBase=wardrobe.filter(i=>{
+  const activeWardrobe = wardrobe.filter(i=>!i.archived);
+  const archivedWardrobe = wardrobe.filter(i=>i.archived);
+  const wardrobeColours = [...new Set(activeWardrobe.flatMap(i=>i.colors||[]).filter(Boolean))];
+  const fWBase=activeWardrobe.filter(i=>{
     const mc=catFilter==='All'||i.category===catFilter;
     const sc=subcatFilter==='All'||i.subcategory===subcatFilter;
     const cc=colourFilter==='All'||(i.colors||[]).some(c=>getColourGroup(c)===colourFilter);
@@ -1310,9 +1318,9 @@ function App(){
   });
   // Item needs attention if missing photo, name, category, size, store, or colour
   const isIncomplete = i => !i.photoUrl||!i.name||!i.category||!i.size||!i.store||(Array.isArray(i.colors)?i.colors.length===0:!i.color);
-  const incomplete=wardrobe.filter(isIncomplete);
-  const neverWorn = wardrobe.filter(i=>!isIncomplete(i)&&!i.lastWornDate);
-  const overdueWorn = wardrobe.filter(i=>!isIncomplete(i)&&i.lastWornDate&&isOverdue(i.lastWornDate))
+  const incomplete=activeWardrobe.filter(isIncomplete);
+  const neverWorn = activeWardrobe.filter(i=>!isIncomplete(i)&&!i.lastWornDate);
+  const overdueWorn = activeWardrobe.filter(i=>!isIncomplete(i)&&i.lastWornDate&&isOverdue(i.lastWornDate))
     .sort((a,b)=>new Date(a.lastWornDate)-new Date(b.lastWornDate));
   const unworn = [...neverWorn, ...overdueWorn];
 
@@ -1366,6 +1374,12 @@ function App(){
             {CATEGORY_MAP[catFilter].map(s=><button key={s} className={`chip${subcatFilter===s?' active':''}`} onClick={()=>setSubcat(s)}>{s}</button>)}
           </div>}
           {(()=>{const usedGroups=[...new Set(wardrobe.flatMap(i=>(i.colors||[]).map(getColourGroup)).filter(Boolean))];return usedGroups.length>0?<div className="filterrow" style={{paddingTop:2}}><button className={`chip${colourFilter==='All'?' active':''}`} onClick={()=>setColourFilter('All')}>All colours</button>{usedGroups.map(g=><button key={g} className={`chip${colourFilter===g?' active':''}`} onClick={()=>setColourFilter(g)}>{g}</button>)}</div>:null;})()}
+          {/* Archive link */}
+          {archivedWardrobe.length>0&&<div onClick={()=>setShowArchive(true)}
+            style={{margin:'6px 16px 0',background:'var(--cream)',borderRadius:10,padding:'9px 13px',border:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer'}}>
+            <div style={{fontSize:12,color:'var(--muted)'}}>📦 {archivedWardrobe.length} archived item{archivedWardrobe.length!==1?'s':''}</div>
+            <span style={{fontSize:11,color:'var(--muted)'}}>View →</span>
+          </div>}
           {incomplete.length>0&&<>
             <div className="banner"><span>📋</span><div><div style={{fontSize:12,fontWeight:500,color:'var(--ink)'}}>{incomplete.length} item{incomplete.length>1?'s':''} need details</div><div style={{fontSize:10,color:'var(--muted)',marginTop:1}}>Tap any below to jump straight to it</div></div></div>
             <div style={{display:'flex',gap:8,overflowX:'auto',padding:'0 16px 8px'}}>
@@ -1460,20 +1474,76 @@ function App(){
         </>}
 
         {tab==='stats'&&<>
-          <div className="stat-grid">
-            {[
-              {n:wardrobe.filter(i=>i.complete).length,l:'Items in wardrobe',tab:'wardrobe'},
-              {n:outfits.length,l:'Saved outfits',tab:'outfits'},
-              {n:wishlist.length,l:'On wishlist',tab:'wishlist'},
-              {n:neverWorn.length+overdueWorn.length,l:'Unworn / overdue',tab:null},
-            ].map(s=><div key={s.l} className="stat-card"
-              onClick={s.tab?()=>setTab(s.tab):undefined}
-              style={{cursor:s.tab?'pointer':'default'}}>
-              <div className="stat-n">{s.n}</div>
-              <div className="stat-l">{s.l}{s.tab&&<span style={{fontSize:9,color:'var(--muted)',marginLeft:4}}>→</span>}</div>
-            </div>)}
-          </div>
+          {(()=>{
+            const priced = activeWardrobe.filter(i=>i.price&&parseFloat(i.price)>0);
+            const totalValue = priced.reduce((s,i)=>s+parseFloat(i.price),0);
+            const withWears = priced.filter(i=>i.wearCount>0);
+            const avgCPW = withWears.length ? withWears.reduce((s,i)=>s+(parseFloat(i.price)/i.wearCount),0)/withWears.length : null;
+            const bestCPW = withWears.length ? withWears.reduce((a,b)=>(parseFloat(a.price)/a.wearCount)<(parseFloat(b.price)/b.wearCount)?a:b) : null;
+            return <>
+            <div className="stat-grid">
+              {[
+                {n:activeWardrobe.filter(i=>!isIncomplete(i)).length,l:'Items in wardrobe',tab:'wardrobe'},
+                {n:outfits.length,l:'Saved outfits',tab:'outfits'},
+                {n:wishlist.length,l:'On wishlist',tab:'wishlist'},
+                {n:neverWorn.length+overdueWorn.length,l:'Unworn / overdue',tab:null},
+              ].map(s=><div key={s.l} className="stat-card"
+                onClick={s.tab?()=>setTab(s.tab):undefined}
+                style={{cursor:s.tab?'pointer':'default'}}>
+                <div className="stat-n">{s.n}</div>
+                <div className="stat-l">{s.l}{s.tab&&<span style={{fontSize:9,color:'var(--muted)',marginLeft:4}}>→</span>}</div>
+              </div>)}
+            </div>
+            {priced.length>0&&<div style={{margin:'10px 16px 0',background:'#fff',borderRadius:14,padding:'14px 16px',border:'1px solid var(--border)'}}>
+              <div style={{fontSize:10,letterSpacing:'1px',textTransform:'uppercase',color:'var(--muted)',marginBottom:10}}>Wardrobe value</div>
+              <div style={{display:'flex',gap:0}}>
+                <div style={{flex:1,borderRight:'1px solid var(--border)',paddingRight:16}}>
+                  <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:28,fontWeight:300}}>A${totalValue.toFixed(0)}</div>
+                  <div style={{fontSize:10,color:'var(--muted)',marginTop:2}}>Total value ({priced.length} items with price)</div>
+                </div>
+                {avgCPW&&<div style={{flex:1,paddingLeft:16}}>
+                  <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:28,fontWeight:300}}>A${avgCPW.toFixed(2)}</div>
+                  <div style={{fontSize:10,color:'var(--muted)',marginTop:2}}>Avg cost per wear</div>
+                </div>}
+              </div>
+              {bestCPW&&<div style={{marginTop:10,paddingTop:10,borderTop:'1px solid var(--border)',fontSize:11,color:'var(--ink)'}}>
+                🏆 Best value: <strong>{bestCPW.name}</strong> — A${(parseFloat(bestCPW.price)/bestCPW.wearCount).toFixed(2)} per wear ({bestCPW.wearCount} wears)
+              </div>}
+            </div>}
+            </>;
+          })()}
 
+          {(()=>{
+            // Spring clean — items owned 6+ months and never worn, or 1yr+ since worn
+            const longUnworn = activeWardrobe.filter(i=>{
+              if(isIncomplete(i))return false;
+              const ageD = i.dateBought ? Math.round((new Date()-new Date(i.dateBought))/86400000) : 0;
+              if(!i.lastWornDate && ageD>180) return true;
+              if(i.lastWornDate && Math.round((new Date()-new Date(i.lastWornDate))/86400000)>365) return true;
+              return false;
+            });
+            if(longUnworn.length<3) return null;
+            const msgs = [
+              `You have ${longUnworn.length} items collecting dust — time to set them free? ✨`,
+              `${longUnworn.length} pieces haven't seen the light of day in a while. Spring clean? 🌸`,
+              `Psst — ${longUnworn.length} items in your wardrobe might be ready to find a new home 👋`,
+            ];
+            const msg = msgs[longUnworn.length % msgs.length];
+            return <div style={{margin:'10px 16px 0',background:'linear-gradient(135deg,#FDF3EC,#F5EDE2)',borderRadius:14,padding:'14px 16px',border:'1px solid #DEC9AF'}}>
+              <div style={{fontSize:13,fontWeight:500,color:'var(--ink)',marginBottom:4}}>{msg}</div>
+              <div style={{fontSize:11,color:'var(--muted)',marginBottom:10}}>These items have been sitting unused for 6 months or more.</div>
+              <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:4}}>
+                {longUnworn.slice(0,6).map(i=><div key={i.id} onClick={()=>{setSelItem(i);setEditItem(false);}}
+                  style={{flexShrink:0,width:64,cursor:'pointer'}}>
+                  <div style={{width:64,height:64,borderRadius:8,background:'#fff',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',border:'1px solid var(--border)'}}>
+                    {i.photoUrl?<img src={i.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<span style={{fontSize:22,opacity:.3}}>{CAT_EMOJI[i.category]||'👗'}</span>}
+                  </div>
+                  <div style={{fontSize:9,color:'var(--muted)',marginTop:3,textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{i.name}</div>
+                </div>)}
+              </div>
+              <div style={{fontSize:10,color:'var(--accent)',marginTop:6}}>Tap an item to archive it as sold/donated →</div>
+            </div>;
+          })()}
           {(neverWorn.length>0||overdueWorn.length>0)&&<>
             <div className="seclbl" style={{marginTop:6}}>Consider rewearing</div>
             <div style={{display:'flex',gap:10,padding:'0 16px 24px'}}>
@@ -1590,10 +1660,31 @@ function App(){
     </div>
   </div></div>
 
+  {showArchive&&<div className="overlay" onClick={()=>setShowArchive(false)}>
+    <div className="sheet" onClick={e=>e.stopPropagation()}>
+      <div className="sheet-handle"/>
+      <div className="sheet-top">
+        <div className="sheet-title">Archived items</div>
+        <button className="sheet-close" onClick={()=>setShowArchive(false)}>✕</button>
+      </div>
+      <div className="sheet-body">
+        <div style={{fontSize:12,color:'var(--muted)',marginBottom:12,lineHeight:1.5}}>Items you've sold or donated. Tap any item to restore it or permanently delete it.</div>
+        <div className="grid">
+          {archivedWardrobe.map(item=><div key={item.id} className="icard" onClick={()=>{setShowArchive(false);setSelItem(item);setEditItem(false);}}>
+            <div className="iphoto">
+              {item.photoUrl?<img src={item.photoUrl} alt={item.name}/>:<div className="no-photo"><span style={{fontSize:22,opacity:.3}}>{CAT_EMOJI[item.category]||'👗'}</span></div>}
+              <span style={{position:'absolute',top:5,right:5,background:'var(--muted)',color:'#fff',fontSize:8,padding:'2px 5px',borderRadius:4}}>archived</span>
+            </div>
+            <div className="iinfo"><div className="iname">{item.name||'Untitled'}</div><div className="imeta">{item.brand||item.store||'—'}</div></div>
+          </div>)}
+        </div>
+      </div>
+    </div>
+  </div>}
   {showAddW   && <AddWardrobeSheet  onSave={addItem}  onClose={()=>setShowAddW(false)}  stores={stores} onAddStore={addStore} wardrobe={wardrobe} extraBrands={extraBrands} onAddBrand={addBrand} wardrobeColours={wardrobeColours} extraColours={extraColours} onAddColour={addColour}/>}
   {showAddWL  && <AddWishSheet      onSave={addWish}  onClose={()=>setShowAddWL(false)} stores={stores} onAddStore={addStore}/>}
   {showAddO   && <OutfitBuilderSheet wardrobe={wardrobe} outfit={null} onSave={saveOutfit} onClose={()=>setShowAddO(false)}/>}
-  {selItem&&!editItem  && <WardrobeDetailSheet item={selItem} onClose={()=>setSelItem(null)} onEdit={()=>setEditItem(true)} onLogWear={logWear} onDelete={()=>delItem(selItem.id)} onToggleFav={()=>toggleFavourite(selItem)}/>}
+  {selItem&&!editItem  && <WardrobeDetailSheet item={selItem} onClose={()=>setSelItem(null)} onEdit={()=>setEditItem(true)} onLogWear={logWear} onDelete={()=>delItem(selItem.id)} onToggleFav={()=>toggleFavourite(selItem)} onToggleArchive={()=>toggleArchive(selItem)}/>}
   {selItem&&editItem   && <EditWardrobeSheet   item={selItem} onSave={saveItem} onCancel={()=>setEditItem(false)} stores={stores} onAddStore={addStore} wardrobe={wardrobe} extraBrands={extraBrands} onAddBrand={addBrand} wardrobeColours={wardrobeColours} extraColours={extraColours} onAddColour={addColour}/>}
   {selWish&&!editWish  && <WishDetailSheet item={selWish} similar={findSimilar(selWish,wardrobe)} onClose={()=>setSelWish(null)} onEdit={()=>setEditWish(true)} onDelete={()=>delWish(selWish.id)} onRate={r=>rateWish(selWish.id,r)} onMoveToWardrobe={()=>bought(selWish)}/>}
   {selWish&&editWish   && <EditWishSheet   item={selWish} onSave={saveWish} onCancel={()=>setEditWish(false)} stores={stores} onAddStore={addStore}/>}
