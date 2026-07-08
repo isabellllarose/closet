@@ -101,17 +101,17 @@ const findSimilar = (wish,wardrobe) => {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const CATEGORY_MAP = {
-  'Tops':          ['T-shirts','Long sleeve tops','Shirts','Blouses','Knits & Jumpers','Tanks & Singlets','Crop tops','Hoodies & Sweatshirts','Bodysuit'],
-  'Bottoms':       ['Jeans','Trousers','Shorts','Skirts','Skort','Mini skirts','Midi skirts','Maxi skirts','Flares','Leggings'],
-  'Dresses':       ['Mini','Midi','Maxi','Slip','Shirt dress','Wrap dress','Sundress','Romper'],
-  'Activewear':    ['Sports tops','Sports bras','Sports bottoms','Gym sets','Tights','Bike shorts'],
-  'Outerwear':     ['Coats','Jackets','Blazers','Vests','Puffer jackets','Leather jackets','Trench coats'],
-  'Shoes':         ['Sneakers','Heels','Boots','Ankle boots','Sandals','Flats','Mules','Loafers'],
-  'Bags':          ['Tote','Shoulder bag','Crossbody','Clutch','Backpack','Belt bag'],
-  'Accessories':   ['Jewellery','Scarves','Belts','Hats','Sunglasses','Hair accessories','Socks'],
-  'Swimwear':      ['Bikini tops','Bikini bottoms','One-piece','Coverups'],
-  'Lingerie':      ['Bras','Underwear'],
-  'Pyjamas':       ['Pyjama set','Pyjama top','Pyjama bottoms','Nightgown','Dressing gown','Slippers','Sleep shorts'],
+  'Tops':          ['T-shirts','Long sleeve tops','Shirts','Blouses','Knits & Jumpers','Tanks & Singlets','Vest top','Tube top','Crop tops','Off-shoulder top','Corset top','Hoodies & Sweatshirts','Bodysuit'],
+  'Bottoms':       ['Jeans','Trousers','Shorts','Skirts','Skort','Mini skirts','Midi skirts','Maxi skirts','Flares','Leggings','Tracksuit pants','Cargo pants'],
+  'Dresses':       ['Mini','Midi','Maxi','Slip','Bodycon','Shirt dress','Wrap dress','Sundress','Strapless','Corset dress','Romper'],
+  'Activewear':    ['Sports tops','Sports bras','Sports bottoms','Shorts','Gym sets','Tracksuit set','Sports jacket','Tights','Bike shorts'],
+  'Outerwear':     ['Coats','Jackets','Blazers','Shacket','Vests','Gilet','Puffer jackets','Leather jackets','Trench coats'],
+  'Shoes':         ['Sneakers','Heels','Platforms','Boots','Ankle boots','Chelsea boots','Knee-high boots','Sandals','Thongs & Slides','Flats','Mules','Loafers','Mary Janes'],
+  'Bags':          ['Tote','Shoulder bag','Crossbody','Clutch','Mini bag','Barrel bag','Backpack','Belt bag'],
+  'Accessories':   ['Jewellery','Watch','Scarves','Belts','Hats','Sunglasses','Gloves','Hair accessories','Socks'],
+  'Swimwear':      ['Bikini tops','Bikini bottoms','One-piece','Rash vest','Swim shorts','Coverups'],
+  'Lingerie':      ['Bras','Underwear','Bodysuit','Babydoll'],
+  'Pyjamas':       ['Pyjama set','Pyjama top','Pyjama bottoms','Nightgown','Dressing gown','Robe','Slippers','Sleep shorts'],
 };
 const CATS      = ['All',...Object.keys(CATEGORY_MAP)];
 
@@ -128,7 +128,7 @@ const COLOUR_GROUPS = {
   'Green':    ['green','olive','sage','forest','mint','khaki','emerald','bottle green','moss','hunter','pistachio'],
   'Blue':     ['blue','navy','denim','cobalt','baby blue','sky blue','teal','petrol','indigo','electric blue','midnight','powder blue'],
   'Purple':   ['purple','violet','lavender','plum','eggplant','lilac','mauve','orchid','grape'],
-  'Multi':    ['multi','multicolour','multicolor','print','pattern','stripe','stripes','check','checked','floral','animal print','leopard','tie-dye','abstract','colour block','color block'],
+  'Multi':    ['multi','multicolour','multicolor','print','pattern','stripe','stripes','check','checked','floral','animal print','leopard','tie-dye','abstract','colour block','color block','spotted','polka dot','polka dots','spot'],
 };
 // Returns the canonical group for a colour string, or null
 function getColourGroup(colour) {
