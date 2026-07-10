@@ -193,12 +193,50 @@ const OCC_C = {
 };
 const CAT_EMOJI = {Tops:'👕',Bottoms:'👖',Dresses:'👗',Activewear:'🏃',Outerwear:'🧥',Shoes:'👟',Bags:'👜',Accessories:'💍',Swimwear:'👙',Lingerie:'🩱',Pyjamas:'🌙'};
 const NEED_LBL  = ['','Nice to have','Want it','Really want it','Need it','Genuinely need'];
+const JEWELLERY_SUBCATS = ['Earrings','Necklaces','Bracelets','Rings','Anklets','Brooches','Hair jewellery','Watch'];
+const JEWELLERY_MATERIALS = ['Gold','Silver','Rose gold','Pearls','Diamonds','Gemstone','Crystal','Beaded','Mixed metals','Enamel','Shell','Wood'];
+const JEWELLERY_EMOJI = {Earrings:'💎',Necklaces:'📿',Bracelets:'✨',Rings:'💍',Anklets:'✨',Brooches:'🌸','Hair jewellery':'✨',Watch:'⌚'};
+
 const OUTFIT_TAGS = [
   'Casual','Going out','Dinner','Date night','Event','Festival','Work','Beach','Gym',
   'Cold','Layered','Warm','Summer',
   'Minimal','Dressed up','Relaxed','Elevated basics',
 ];
-const NAV       = [{key:'wardrobe',label:'Wardrobe'},{key:'outfits',label:'Outfits'},{key:'wishlist',label:'Wishlist'},{key:'stats',label:'Stats'},{key:'sizes',label:'Sizes'},{key:'ask',label:'Ask'}];
+const NAV       = [{key:'wardrobe',label:'Wardrobe'},{key:'outfits',label:'Outfits'},{key:'wishlist',label:'Wishlist'},{key:'stats',label:'Stats'},{key:'sizes',label:'Sizes'},{key:'jewellery',label:'Jewellery'}];
+// Weather condition mapping for outfit suggestions
+const WEATHER_CONDITION_MAP = {
+  0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',
+  45:'Foggy',48:'Foggy',51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',
+  61:'Light rain',63:'Rain',65:'Heavy rain',71:'Light snow',73:'Snow',
+  80:'Rain showers',81:'Rain showers',82:'Heavy showers',95:'Thunderstorm',
+};
+function weatherIcon(code) {
+  if(code===0||code===1)return'☀️';
+  if(code===2||code===3)return'⛅';
+  if(code>=45&&code<=48)return'🌫️';
+  if(code>=51&&code<=67)return'🌧️';
+  if(code>=71&&code<=77)return'❄️';
+  if(code>=80&&code<=82)return'🌦️';
+  if(code>=95)return'⛈️';
+  return'🌡️';
+}
+function getSeason() {
+  const m = new Date().getMonth(); // 0=Jan
+  if(m>=11||m<=1)return'summer';
+  if(m>=2&&m<=4)return'autumn';
+  if(m>=5&&m<=7)return'winter';
+  return'spring';
+}
+const SEASON_PALETTES = {
+  summer: ['Red','Pink','Orange','Yellow','Blue','Multi','Neutrals'],
+  autumn: ['Brown','Red','Orange','Green','Neutrals','Purple'],
+  winter: ['Black','Grey','Blue','Purple','Brown','Neutrals','Red'],
+  spring: ['Pink','Green','Yellow','Blue','Neutrals','Multi','Purple'],
+};
+
+const toJR   = i => ({id:i.id,name:i.name,subcategory:i.subcategory||null,material:i.material||null,brand:i.brand||null,store:i.store||null,color:i.color||null,photo_url:i.photoUrl||null,price:i.price||null,notes:i.notes||null,favourite:!!i.favourite,date_bought:i.dateBought||null});
+const fromJR = r => ({id:r.id,name:r.name,subcategory:r.subcategory,material:r.material,brand:r.brand,store:r.store,color:r.color,photoUrl:r.photo_url,price:r.price,notes:r.notes,favourite:!!r.favourite,dateBought:r.date_bought});
+
 const SIZE_CAT_MAP = {'Tops':'Tops','Bottoms':'Bottoms','Dresses':'Dresses','Activewear':'Activewear','Outerwear':'Outerwear','Shoes':'Shoes'};
 
 // Built-in size guides — default hidden stores can be toggled off
@@ -1105,7 +1143,7 @@ function OutfitBuilderSheet({wardrobe,outfit,onSave,onClose}){
     await onSave({id:outfit?.id||uid(),tags,notes,itemIds,positions:mode==='freeform'?positions:null,wearCount:outfit?.wearCount||0,lastWornDate:outfit?.lastWornDate||null});
     setSaving(false);
   }
-  const SC=[{key:'Top',label:'Top / Dress'},{key:'Outer',label:'Outer layer'},{key:'Bottom',label:'Bottom'},{key:'Shoes',label:'Shoes'},{key:'Bag',label:'Bag / Acc.'}];
+  const SC=[{key:'Top',label:'Top / Dress'},{key:'Outer',label:'Outer layer'},{key:'Bottom',label:'Bottom'},{key:'Shoes',label:'Shoes'},{key:'Bag',label:'Bag / Acc.'},{key:'Jewellery',label:'Jewellery'}];
   return <Sheet title={isNew?'New outfit':'Edit outfit'} onClose={onClose} actions={<><BtnO onClick={onClose}>Cancel</BtnO><BtnF onClick={save} loading={saving} color="#B07848">{isNew?'Save outfit':'Save changes'}</BtnF></>}>
     <FGrp label="Tags">
       <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:8}}>
@@ -1181,6 +1219,64 @@ function OutfitDetailSheet({outfit,wardrobe,onClose,onEdit,onDelete,onMarkWorn})
 }
 
 // ── Cards ─────────────────────────────────────────────────────────────────────
+// ── Jewellery sheets ─────────────────────────────────────────────────────────
+function AddJewelSheet({onSave,onClose,stores,onAddStore}){
+  const [d,setD]=useState({name:'',subcategory:'',material:'',brand:'',store:'',color:'',photoUrl:null,price:'',notes:'',favourite:false,dateBought:null});
+  const [saving,setSaving]=useState(false);const up=v=>setD(p=>({...p,...v}));
+  return <Sheet title="Add jewellery" onClose={onClose} actions={<><BtnO onClick={onClose}>Cancel</BtnO><BtnF onClick={async()=>{setSaving(true);await onSave({...d,id:uid()});setSaving(false);}} disabled={!d.name} loading={saving} color="#B07848">Add piece</BtnF></>}>
+    <div style={{display:'flex',gap:12,marginBottom:14}}>
+      <PhotoUploader photoUrl={d.photoUrl} onUrl={u=>up({photoUrl:u})} style={{flex:'0 0 110px',minHeight:110}}/>
+      <div style={{flex:1,display:'flex',flexDirection:'column',gap:8}}>
+        <FGrp label="Name" style={{marginBottom:0}}><FInp value={d.name} placeholder="e.g. Gold chain necklace" onChange={e=>up({name:e.target.value})}/></FGrp>
+        <FGrp label="Type" style={{marginBottom:0}}><FSel value={d.subcategory} onChange={e=>up({subcategory:e.target.value})} placeholder="Select type…" options={JEWELLERY_SUBCATS}/></FGrp>
+        <FGrp label="Material" style={{marginBottom:0}}><FSel value={d.material} onChange={e=>up({material:e.target.value})} placeholder="Select material…" options={JEWELLERY_MATERIALS}/></FGrp>
+      </div>
+    </div>
+    <FRow><FGrp label="Brand" style={{flex:1}}><FInp value={d.brand} placeholder="e.g. Lovisa" onChange={e=>up({brand:e.target.value})}/></FGrp><FGrp label="Store" style={{flex:1}}><StorePicker value={d.store||''} onChange={v=>up({store:v})} stores={stores} onAddStore={onAddStore}/></FGrp></FRow>
+    <FRow><FGrp label="Price paid (A$)" style={{flex:1}}><FInp value={d.price} placeholder="29.95" type="number" onChange={e=>up({price:e.target.value})}/></FGrp><div style={{flex:1}}/></FRow>
+    <DateField label="Date bought" value={d.dateBought} onChange={v=>up({dateBought:v})}/>
+    <FGrp label="Notes"><FInp value={d.notes} placeholder="How you wear it, what it pairs with…" onChange={e=>up({notes:e.target.value})}/></FGrp>
+  </Sheet>;
+}
+
+function JewelDetailSheet({item,onClose,onEdit,onDelete,onToggleFav}){
+  return <Sheet title={item.name||'Untitled'} onClose={onClose}>
+    <div style={{width:'100%',maxHeight:'32vh',background:'#FAFAF8',display:'flex',alignItems:'center',justifyContent:'center',borderRadius:14,marginBottom:14,overflow:'hidden',flexShrink:0}}>
+      {item.photoUrl?<img src={item.photoUrl} alt="" style={{maxWidth:'100%',maxHeight:'32vh',objectFit:'contain'}}/>:<span style={{fontSize:64,opacity:.3}}>{JEWELLERY_EMOJI[item.subcategory]||'💍'}</span>}
+    </div>
+    <DetailRow label="Type" value={item.subcategory}/>
+    <DetailRow label="Material" value={item.material}/>
+    <DetailRow label="Brand" value={item.brand}/>
+    <DetailRow label="Store" value={item.store}/>
+    <DetailRow label="Price paid" value={item.price?`A$${item.price}`:null}/>
+    <DetailRow label="Date bought" value={formatDate(item.dateBought)}/>
+    <DetailRow label="Notes" value={item.notes}/>
+    <div style={{display:'flex',gap:8,marginTop:14}}>
+      <button onClick={onToggleFav} style={{padding:'12px 14px',border:'1.5px solid var(--border)',borderRadius:12,background:'none',fontSize:18,cursor:'pointer',lineHeight:1}}>{item.favourite?'★':'☆'}</button>
+      <button onClick={onEdit} style={{flex:1,padding:12,border:'1.5px solid var(--border)',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Edit</button>
+      <button onClick={onDelete} style={{padding:'12px 14px',border:'1.5px solid #EAC8C8',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',color:'var(--red)',fontFamily:"'Jost',sans-serif"}}>🗑</button>
+    </div>
+  </Sheet>;
+}
+
+function EditJewelSheet({item,onSave,onCancel,stores,onAddStore}){
+  const [f,setF]=useState({...item});const [saving,setSaving]=useState(false);const up=v=>setF(p=>({...p,...v}));
+  return <Sheet title="Edit piece" onClose={onCancel} actions={<><BtnO onClick={onCancel}>Cancel</BtnO><BtnF onClick={async()=>{setSaving(true);await onSave(f);setSaving(false);}} loading={saving} color="#B07848">Save changes</BtnF></>}>
+    <div style={{display:'flex',gap:12,marginBottom:14}}>
+      <PhotoUploader photoUrl={f.photoUrl} onUrl={u=>up({photoUrl:u})} style={{flex:'0 0 110px',minHeight:110}}/>
+      <div style={{flex:1,display:'flex',flexDirection:'column',gap:8}}>
+        <FGrp label="Name" style={{marginBottom:0}}><FInp value={f.name} onChange={e=>up({name:e.target.value})}/></FGrp>
+        <FGrp label="Type" style={{marginBottom:0}}><FSel value={f.subcategory} onChange={e=>up({subcategory:e.target.value})} placeholder="Select type…" options={JEWELLERY_SUBCATS}/></FGrp>
+        <FGrp label="Material" style={{marginBottom:0}}><FSel value={f.material} onChange={e=>up({material:e.target.value})} placeholder="Select material…" options={JEWELLERY_MATERIALS}/></FGrp>
+      </div>
+    </div>
+    <FRow><FGrp label="Brand" style={{flex:1}}><FInp value={f.brand} onChange={e=>up({brand:e.target.value})}/></FGrp><FGrp label="Store" style={{flex:1}}><StorePicker value={f.store||''} onChange={v=>up({store:v})} stores={stores} onAddStore={onAddStore}/></FGrp></FRow>
+    <FRow><FGrp label="Price paid (A$)" style={{flex:1}}><FInp value={f.price} type="number" onChange={e=>up({price:e.target.value})}/></FGrp><div style={{flex:1}}/></FRow>
+    <DateField label="Date bought" value={f.dateBought} onChange={v=>up({dateBought:v})}/>
+    <FGrp label="Notes"><FInp value={f.notes} onChange={e=>up({notes:e.target.value})}/></FGrp>
+  </Sheet>;
+}
+
 function WardrobeCard({item,onClick,onToggleFav,showLabels=true}){
   const needsInfo = !item.photoUrl||!item.name||!item.category||!item.size||!item.store||(Array.isArray(item.colors)?item.colors.length===0:!item.color);
   return <div className={`icard${needsInfo?' incomplete':''}`} onClick={onClick}>
@@ -1239,8 +1335,22 @@ function App(){
   const [wlFilter,setWlF]   = useState('All');
   const [search,setSearch]  = useState('');
   const [openStore,setOS]   = useState(null);
-  const [rewearModal,setRewearModal] = useState(null); // 'never' | 'overdue' | null
+  const [rewearModal,setRewearModal] = useState(null);
   const [showArchive,setShowArchive] = useState(false);
+  const [jewellery,setJewellery] = useState([]);
+  const [selJewel,setSelJewel] = useState(null);
+  const [showAddJ,setShowAddJ] = useState(false);
+  const [editJewel,setEditJewel] = useState(false);
+  const [jMatFilter,setJMatFilter] = useState('All');
+  const [jSubFilter,setJSubFilter] = useState('All');
+  // Getting Dressed state
+  const [gdOccasion,setGdOccasion] = useState(null);
+  const [gdWeather,setGdWeather] = useState(null);
+  const [gdLocation,setGdLocation] = useState({name:'Patterson Lakes',lat:-38.07,lng:145.12});
+  const [gdLocationInput,setGdLocationInput] = useState('');
+  const [gdEditingLocation,setGdEditingLocation] = useState(false);
+  const [gdSuggestion,setGdSuggestion] = useState(null);
+  const [gdLoading,setGdLoading] = useState(false);
   const [hiddenGuides,setHiddenGuides] = useState(new Set());
   const [showManageGuides,setShowManageGuides] = useState(false);
   const [askQ,setAskQ]      = useState('');
@@ -1266,8 +1376,9 @@ function App(){
   useEffect(()=>{
     async function load(){
       try{
-        const [wr,wlr,or,sr]=await Promise.all([sb.get('wardrobe'),sb.get('wishlist'),sb.get('outfits'),sb.get('stores')]);
+        const [wr,wlr,or,sr,jr]=await Promise.all([sb.get('wardrobe'),sb.get('wishlist'),sb.get('outfits'),sb.get('stores'),sb.get('jewellery').catch(()=>[])]);
         setW(wr.map(fromRow));setWL(wlr.map(fromWR));setO(or.map(fromOR));setStores(sr);
+        setJewellery(jr.map(fromJR));
       }catch(e){console.error(e);}
       setLoading(false);
     }
@@ -1282,6 +1393,82 @@ function App(){
   async function logWear(item,date){const u={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};try{await sb.upd('wardrobe',item.id,{last_worn_date:date,wear_count:u.wearCount});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
   async function toggleFavourite(item){const u={...item,favourite:!item.favourite};try{await sb.upd('wardrobe',item.id,{favourite:u.favourite});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
   async function toggleArchive(item){const u={...item,archived:!item.archived};try{await sb.upd('wardrobe',item.id,{archived:u.archived});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
+
+  // Jewellery CRUD
+  async function addJewel(i){try{await sb.ins('jewellery',toJR(i));setJewellery(p=>[...p,i]);}catch(e){console.error(e);}setShowAddJ(false);}
+  async function saveJewel(i){try{await sb.upd('jewellery',i.id,toJR(i));setJewellery(p=>p.map(x=>x.id===i.id?i:x));setSelJewel(i);}catch(e){console.error(e);}setEditJewel(false);}
+  async function delJewel(id){try{await sb.del('jewellery',id);setJewellery(p=>p.filter(x=>x.id!==id));}catch(e){console.error(e);}setSelJewel(null);}
+  async function toggleJewelFav(item){const u={...item,favourite:!item.favourite};try{await sb.upd('jewellery',item.id,{favourite:u.favourite});setJewellery(p=>p.map(x=>x.id===item.id?u:x));setSelJewel(u);}catch(e){console.error(e);}}
+
+  // Getting Dressed — outfit scoring
+  async function fetchWeather(){
+    try{
+      const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${gdLocation.lat}&longitude=${gdLocation.lng}&current=temperature_2m,weather_code,precipitation_probability&timezone=auto`);
+      const d=await r.json();
+      setGdWeather({temp:Math.round(d.current.temperature_2m),code:d.current.weather_code,rain:d.current.precipitation_probability});
+    }catch(e){console.error('weather:',e);}
+  }
+
+  function scoreOutfit(outfit,occasion,weather){
+    let score=0;
+    const tags=outfit.tags||[];
+    // Occasion match
+    const occMap={Casual:['Casual','Weekend','Relaxed'],Work:['Work','Elevated basics'],Gym:['Gym','Sport','Active'],Going out:['Going out','Evening','Dinner','Date night'],Evening:['Evening','Dinner','Date night','Event']};
+    const targetTags=occMap[occasion]||[];
+    if(tags.some(t=>targetTags.includes(t)))score+=30;
+    // Weather tags
+    const temp=weather?.temp||20;
+    if(temp<15&&tags.some(t=>['Cold','Layered','Cold weather'].includes(t)))score+=20;
+    if(temp>22&&tags.some(t=>['Warm','Summer','Warm weather'].includes(t)))score+=20;
+    // Recency — reward outfits not worn recently
+    if(!outfit.lastWornDate)score+=15;
+    else{const d=Math.round((new Date()-new Date(outfit.lastWornDate))/86400000);if(d>30)score+=10;if(d>90)score+=10;}
+    return score;
+  }
+
+  function generateOutfitCombo(occasion,weather){
+    const season=getSeason();
+    const palette=SEASON_PALETTES[season]||[];
+    const activeItems=activeWardrobe.filter(i=>!isIncomplete(i));
+    const occMap={Casual:['Casual','Weekend'],Work:['Work'],Gym:['Gym','Sport'],Going out:['Going out','Evening'],Evening:['Evening','Dinner']};
+    const targetOcc=occMap[occasion]||['Casual'];
+    // Pick anchor — most worn item matching occasion, preferring favourites
+    const candidates=activeItems.filter(i=>(i.occasions||[]).some(o=>targetOcc.includes(o))||i.favourite).sort((a,b)=>{const af=a.favourite?100:0;const bf=b.favourite?100:0;return(bf+b.wearCount)-(af+a.wearCount);});
+    const anchor=candidates[0]||activeItems.sort((a,b)=>b.wearCount-a.wearCount)[0];
+    if(!anchor)return null;
+    // Find less-worn complementary items
+    const anchorCat=anchor.category;
+    const needCats=anchorCat==='Tops'||anchorCat==='Dresses'?['Bottoms','Shoes','Outerwear']:['Tops','Shoes','Outerwear'];
+    const picks=[anchor];
+    needCats.forEach(cat=>{
+      const opts=activeItems.filter(i=>i.category===cat&&i.id!==anchor.id)
+        .sort((a,b)=>a.wearCount-b.wearCount); // least worn first
+      if(opts.length)picks.push(opts[0]);
+    });
+    return picks;
+  }
+
+  function generateSuggestion(){
+    if(!gdOccasion)return;
+    setGdLoading(true);
+    setTimeout(()=>{
+      // Best saved outfit
+      const scored=[...outfits].map(o=>({o,s:scoreOutfit(o,gdOccasion,gdWeather)})).sort((a,b)=>b.s-a.s);
+      const bestSaved=scored[0]?.s>20?scored[0].o:null;
+      // Generated combo
+      const combo=generateOutfitCombo(gdOccasion,gdWeather);
+      setGdSuggestion({savedOutfit:bestSaved,combo});
+      setGdLoading(false);
+    },400);
+  }
+
+  async function geocodeLocation(query){
+    try{
+      const r=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=en&format=json`);
+      const d=await r.json();
+      if(d.results?.length){const res=d.results[0];setGdLocation({name:res.name+', '+res.country_code,lat:res.latitude,lng:res.longitude});setGdEditingLocation(false);setGdWeather(null);fetchWeather();}
+    }catch(e){console.error('geocode:',e);}
+  }
 
   async function addWish(i){try{await sb.ins('wishlist',toWR(i));setWL(p=>[...p,i]);}catch(e){console.error(e);}setShowAddWL(false);}
   async function saveWish(i){try{await sb.upd('wishlist',i.id,toWR(i));setWL(p=>p.map(x=>x.id===i.id?i:x));setSelWish(i);}catch(e){console.error(e);}setEditWish(false);}
@@ -1347,7 +1534,7 @@ function App(){
   const ASK_SUGG=["What size are my Levi's jeans?","What Zara size do I wear?","Do I have anything black?","When did I last wear my coat?","What Cotton On size am I?"];
   function handleAsk(q){const query=(q||askQ).toLowerCase().trim();if(!query)return;const words=query.split(' ').filter(w=>w.length>3);const match=wardrobe.find(i=>words.some(w=>[i.name,i.brand,i.color,i.store,i.category,i.subcategory].some(s=>(s||'').toLowerCase().includes(w))));if(match){const guide=SIZE_GUIDES.find(g=>g.store.toLowerCase()===(match.store||'').toLowerCase());const sRow=guide?.sizes.find(s=>s.l===match.size);setAR({item:match,guide,sRow,query:q||askQ});}else{setAR({notFound:true,query:q||askQ});}setAskQ('');}
 
-  const tabTitle={wardrobe:'Wardrobe',outfits:'Outfits',wishlist:'Wishlist',stats:'Stats',sizes:'Size guides',ask:'Ask closet'};
+  const tabTitle={wardrobe:'Wardrobe',outfits:'Outfits',wishlist:'Wishlist',stats:'Stats',sizes:'Size guides',jewellery:'Jewellery'};
 
   if(loading)return<><style>{CSS}</style><div style={{height:'100dvh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--cream)',flexDirection:'column',gap:12}}><div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:32,fontWeight:300,letterSpacing:4}}>closet</div><div style={{fontSize:12,color:'var(--muted)'}}>Loading your wardrobe…</div></div></>;
 
@@ -1366,6 +1553,7 @@ function App(){
         {tab==='wardrobe'&&<button className="iconbtn" onClick={()=>setShowAddW(true)}>+</button>}
         {tab==='outfits'&&<button className="iconbtn" onClick={()=>setShowAddO(true)}>+</button>}
         {tab==='wishlist'&&<button className="iconbtn" onClick={()=>setShowAddWL(true)}>+</button>}
+        {tab==='jewellery'&&<button className="iconbtn" onClick={()=>setShowAddJ(true)}>+</button>}
       </div>
       <div className="scroll" id="main-scroll" onScroll={e=>setScrollY(e.target.scrollTop)}>
 
@@ -1449,6 +1637,71 @@ function App(){
         </>}
 
         {tab==='outfits'&&<>
+          {/* Getting Dressed card */}
+          <div style={{margin:'10px 16px 0',background:'var(--ink)',borderRadius:16,padding:'14px 16px',color:'#fff'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+              <div>
+                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:300,letterSpacing:1}}>Getting dressed</div>
+                <div style={{fontSize:10,color:'rgba(255,255,255,.5)',marginTop:1}}>
+                  {gdEditingLocation
+                    ?<div style={{display:'flex',gap:4,marginTop:2}}>
+                      <input value={gdLocationInput} onChange={e=>setGdLocationInput(e.target.value)}
+                        onKeyDown={e=>e.key==='Enter'&&geocodeLocation(gdLocationInput)}
+                        placeholder="Suburb or postcode…"
+                        style={{background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.2)',borderRadius:6,padding:'4px 8px',color:'#fff',fontSize:11,fontFamily:"'Jost',sans-serif",outline:'none',width:160}}/>
+                      <button onClick={()=>geocodeLocation(gdLocationInput)} style={{padding:'4px 8px',background:'var(--accent)',border:'none',borderRadius:6,color:'#fff',fontSize:11,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Go</button>
+                      <button onClick={()=>setGdEditingLocation(false)} style={{padding:'4px 8px',background:'rgba(255,255,255,.1)',border:'none',borderRadius:6,color:'rgba(255,255,255,.6)',fontSize:11,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>✕</button>
+                    </div>
+                    :<span onClick={()=>{setGdEditingLocation(true);setGdLocationInput('');}} style={{cursor:'pointer',textDecoration:'underline dotted'}}>📍 {gdLocation.name}</span>
+                  }
+                </div>
+              </div>
+              {gdWeather
+                ?<div style={{textAlign:'right'}}>
+                  <div style={{fontSize:22}}>{weatherIcon(gdWeather.code)}</div>
+                  <div style={{fontSize:16,fontWeight:300}}>{gdWeather.temp}°C</div>
+                  <div style={{fontSize:9,color:'rgba(255,255,255,.5)'}}>{gdWeather.rain>30?`${gdWeather.rain}% rain`:'No rain'}</div>
+                </div>
+                :<button onClick={fetchWeather} style={{padding:'6px 10px',background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.2)',borderRadius:8,color:'rgba(255,255,255,.7)',fontSize:11,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Load weather</button>
+              }
+            </div>
+            {/* Occasion picker */}
+            <div style={{display:'flex',gap:5,marginBottom:10,flexWrap:'wrap'}}>
+              {['Casual','Work','Gym','Going out','Evening'].map(occ=><button key={occ} onClick={()=>{setGdOccasion(occ);setGdSuggestion(null);}}
+                style={{padding:'5px 11px',borderRadius:20,fontSize:11,border:'1px solid',borderColor:gdOccasion===occ?'#fff':'rgba(255,255,255,.25)',background:gdOccasion===occ?'#fff':'transparent',color:gdOccasion===occ?'var(--ink)':'rgba(255,255,255,.7)',cursor:'pointer',fontFamily:"'Jost',sans-serif",transition:'all .15s'}}>{occ}</button>)}
+            </div>
+            {gdOccasion&&<button onClick={generateSuggestion} disabled={gdLoading}
+              style={{width:'100%',padding:'10px',background:'var(--accent)',border:'none',borderRadius:10,color:'#fff',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif",opacity:gdLoading?.6:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+              {gdLoading?<><div className="spinner"/>Putting together an outfit…</>:'✨ Suggest an outfit'}
+            </button>}
+            {/* Suggestion results */}
+            {gdSuggestion&&<div style={{marginTop:10}}>
+              {gdSuggestion.savedOutfit&&<div style={{marginBottom:8}}>
+                <div style={{fontSize:10,color:'rgba(255,255,255,.5)',letterSpacing:.8,textTransform:'uppercase',marginBottom:5}}>From your saved outfits</div>
+                <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:2}}>
+                  {gdSuggestion.savedOutfit.itemIds.map(id=>wardrobe.find(w=>w.id===id)).filter(Boolean).map(item=><div key={item.id} style={{flexShrink:0,textAlign:'center'}}>
+                    <div style={{width:52,height:64,borderRadius:8,background:'#fff',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      {item.photoUrl?<img src={item.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<span style={{fontSize:20,opacity:.4}}>{CAT_EMOJI[item.category]||'👗'}</span>}
+                    </div>
+                    <div style={{fontSize:8,color:'rgba(255,255,255,.5)',marginTop:2,width:52,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.name}</div>
+                  </div>)}
+                </div>
+                <button onClick={()=>{setSelOutfit(gdSuggestion.savedOutfit);setEditOutfit(false);}} style={{marginTop:5,fontSize:10,color:'rgba(255,255,255,.6)',background:'none',border:'none',cursor:'pointer',fontFamily:"'Jost',sans-serif",textDecoration:'underline'}}>View full outfit →</button>
+              </div>}
+              {gdSuggestion.combo&&<div>
+                <div style={{fontSize:10,color:'rgba(255,255,255,.5)',letterSpacing:.8,textTransform:'uppercase',marginBottom:5}}>{gdSuggestion.savedOutfit?'Or try this combination':'Try this combination'}</div>
+                <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:2}}>
+                  {gdSuggestion.combo.map(item=><div key={item.id} style={{flexShrink:0,textAlign:'center'}}>
+                    <div style={{width:52,height:64,borderRadius:8,background:'#fff',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      {item.photoUrl?<img src={item.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<span style={{fontSize:20,opacity:.4}}>{CAT_EMOJI[item.category]||'👗'}</span>}
+                    </div>
+                    <div style={{fontSize:8,color:'rgba(255,255,255,.5)',marginTop:2,width:52,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.name}</div>
+                  </div>)}
+                </div>
+                <button onClick={()=>setGdSuggestion(p=>({...p,combo:generateOutfitCombo(gdOccasion,gdWeather)}))} style={{marginTop:5,fontSize:10,color:'rgba(255,255,255,.6)',background:'none',border:'none',cursor:'pointer',fontFamily:"'Jost',sans-serif",textDecoration:'underline'}}>Shuffle ↺</button>
+              </div>}
+            </div>}
+          </div>
           {/* Tag filter + arrange button */}
           {outfits.length>0&&(()=>{
             const usedTags=[...new Set(outfits.flatMap(o=>o.tags||[]))];
@@ -1697,11 +1950,32 @@ function App(){
             </div>)}
           </div>}
         </div>}
-        {tab==='ask'&&<div className="ask-wrap">
-          <div className="ask-box"><div className="ask-input-row"><input className="ask-input" placeholder="e.g. What size are my Levi's jeans?" value={askQ} onChange={e=>setAskQ(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleAsk()}/><button onClick={()=>handleAsk()} style={{padding:'7px 13px',background:'var(--ink)',color:'#fff',border:'none',borderRadius:8,fontSize:11,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Ask</button></div><div>{ASK_SUGG.map(q=><div key={q} onClick={()=>handleAsk(q)} style={{padding:'9px 14px',fontSize:12,color:'var(--muted)',cursor:'pointer',borderTop:'1px solid var(--border)'}}>{q}</div>)}</div></div>
-          {askResult&&<div style={{background:'var(--ink)',borderRadius:14,padding:16,color:'#fff'}}><div style={{fontSize:9,letterSpacing:1,textTransform:'uppercase',color:'rgba(255,255,255,.45)',marginBottom:5}}>{askResult.query}</div>{askResult.notFound?<><div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,fontWeight:300,marginBottom:6}}>Nothing found</div><div style={{fontSize:12,color:'rgba(255,255,255,.7)',lineHeight:1.7}}>No items matched. Try a brand, colour, or category.</div></>:<><div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,fontWeight:300,marginBottom:6,lineHeight:1.3}}>{askResult.item.name} — {askResult.item.sizeLabel||askResult.item.size||'size not set'}</div><div style={{fontSize:12,color:'rgba(255,255,255,.7)',lineHeight:1.7,whiteSpace:'pre-line'}}>{[askResult.item.brand,askResult.item.color,askResult.item.category,askResult.item.subcategory,askResult.item.store&&`from ${askResult.item.store}`].filter(Boolean).join(' · ')}{askResult.sRow?`\n\n${askResult.guide.store} size ${askResult.sRow.l}:\nBust ${askResult.sRow.bust}cm · Waist ${askResult.sRow.waist}cm · Hip ${askResult.sRow.hip}cm${askResult.sRow.inseam?` · Inseam ${askResult.sRow.inseam}`:''}`:askResult.guide?'\n\nSize guide available — check the Sizes tab.':''}</div></>}</div>}
-          {!askResult&&<div style={{background:'#fff',borderRadius:14,padding:'14px 16px',border:'1px solid var(--border)'}}><div style={{fontSize:10,color:'var(--muted)',marginBottom:8,letterSpacing:'.5px',textTransform:'uppercase'}}>Try asking</div><div style={{display:'flex',flexWrap:'wrap',gap:6}}>{ASK_SUGG.map(q=><div key={q} onClick={()=>handleAsk(q)} style={{padding:'5px 11px',borderRadius:20,border:'1px solid var(--border)',background:'#fff',fontSize:11,color:'var(--muted)',cursor:'pointer'}}>{q}</div>)}</div></div>}
-        </div>}
+        {tab==='jewellery'&&<>
+          <div className="filterrow">
+            <button className={`chip${jSubFilter==='All'?' active':''}`} onClick={()=>setJSubFilter('All')}>All</button>
+            {JEWELLERY_SUBCATS.map(s=><button key={s} className={`chip${jSubFilter===s?' active':''}`} onClick={()=>setJSubFilter(s)}>{s}</button>)}
+          </div>
+          <div className="filterrow" style={{paddingTop:2}}>
+            <button className={`chip${jMatFilter==='All'?' active':''}`} onClick={()=>setJMatFilter('All')}>All metals</button>
+            {JEWELLERY_MATERIALS.map(m=><button key={m} className={`chip${jMatFilter===m?' active':''}`} onClick={()=>setJMatFilter(m)}>{m}</button>)}
+          </div>
+          {(()=>{
+            const fJ=jewellery.filter(i=>(jSubFilter==='All'||i.subcategory===jSubFilter)&&(jMatFilter==='All'||i.material===jMatFilter));
+            if(fJ.length===0)return<div className="empty"><div style={{fontSize:40,marginBottom:10}}>💍</div><div className="empty-t">No jewellery yet</div><div className="empty-s">Tap + to add your first piece.</div></div>;
+            return<><div className="seclbl">{jSubFilter==='All'?'All pieces':jSubFilter} · {fJ.length}</div>
+            <div className="grid" style={{'--grid-cols':3}}>
+              {fJ.map(item=><div key={item.id} className="icard" onClick={()=>{setSelJewel(item);setEditJewel(false);}}>
+                <div className="iphoto" style={{background:'#FAFAF8'}}>
+                  {item.photoUrl?<img src={item.photoUrl} alt={item.name}/>
+                  :<div className="no-photo"><span style={{fontSize:28,opacity:.5}}>{JEWELLERY_EMOJI[item.subcategory]||'💍'}</span></div>}
+                  {item.favourite&&<span style={{position:'absolute',top:5,left:5,fontSize:14,color:'#C9A050',filter:'drop-shadow(0 1px 2px rgba(0,0,0,.3))'}}>★</span>}
+                  {item.material&&<span style={{position:'absolute',bottom:5,right:5,background:'rgba(0,0,0,.45)',color:'#fff',fontSize:8,padding:'2px 5px',borderRadius:4,backdropFilter:'blur(4px)'}}>{item.material}</span>}
+                </div>
+                <div className="iinfo"><div className="iname">{item.name||'Untitled'}</div><div className="imeta">{item.subcategory||'—'}</div></div>
+              </div>)}
+            </div></>;
+          })()}
+        </>}
 
       </div>
       <div className="botnav">{NAV.map(n=><button key={n.key} className={`navitem${tab===n.key?' active':''}`} onClick={()=>setTab(n.key)}><span className="nl">{n.label}</span>{tab===n.key&&<span className="navdot"/>}</button>)}</div>
@@ -1734,6 +2008,9 @@ function App(){
   {showAddWL  && <AddWishSheet      onSave={addWish}  onClose={()=>setShowAddWL(false)} stores={stores} onAddStore={addStore}/>}
   {showAddO   && <OutfitBuilderSheet wardrobe={wardrobe} outfit={null} onSave={saveOutfit} onClose={()=>setShowAddO(false)}/>}
   {selItem&&!editItem  && <WardrobeDetailSheet item={selItem} onClose={()=>setSelItem(null)} onEdit={()=>setEditItem(true)} onLogWear={logWear} onDelete={()=>delItem(selItem.id)} onToggleFav={()=>toggleFavourite(selItem)} onToggleArchive={()=>toggleArchive(selItem)}/>}
+  {showAddJ   && <AddJewelSheet onSave={addJewel} onClose={()=>setShowAddJ(false)} stores={stores} onAddStore={addStore}/>}
+  {selJewel&&!editJewel && <JewelDetailSheet item={selJewel} onClose={()=>setSelJewel(null)} onEdit={()=>setEditJewel(true)} onDelete={()=>delJewel(selJewel.id)} onToggleFav={()=>toggleJewelFav(selJewel)}/>}
+  {selJewel&&editJewel  && <EditJewelSheet item={selJewel} onSave={saveJewel} onCancel={()=>setEditJewel(false)} stores={stores} onAddStore={addStore}/>}
   {selItem&&editItem   && <EditWardrobeSheet   item={selItem} onSave={saveItem} onCancel={()=>setEditItem(false)} stores={stores} onAddStore={addStore} wardrobe={wardrobe} extraBrands={extraBrands} onAddBrand={addBrand} wardrobeColours={wardrobeColours} extraColours={extraColours} onAddColour={addColour}/>}
   {selWish&&!editWish  && <WishDetailSheet item={selWish} similar={findSimilar(selWish,wardrobe)} onClose={()=>setSelWish(null)} onEdit={()=>setEditWish(true)} onDelete={()=>delWish(selWish.id)} onRate={r=>rateWish(selWish.id,r)} onMoveToWardrobe={()=>bought(selWish)}/>}
   {selWish&&editWish   && <EditWishSheet   item={selWish} onSave={saveWish} onCancel={()=>setEditWish(false)} stores={stores} onAddStore={addStore}/>}
