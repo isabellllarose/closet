@@ -94,18 +94,29 @@ const fromWR = r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subc
 const toOR   = o => ({id:o.id,tags:o.tags||[],notes:o.notes||null,item_ids:o.itemIds||[],item_positions:o.positions||null,wear_count:o.wearCount||0,last_worn_date:o.lastWornDate||null});
 const fromOR = r => ({id:r.id,tags:Array.isArray(r.tags)?r.tags:[],notes:r.notes,itemIds:r.item_ids||[],positions:r.item_positions||null,wearCount:r.wear_count||0,lastWornDate:r.last_worn_date});
 
-const findSimilar = (wish,wardrobe) => {
-  if(!wish.category)return[];
-  return wardrobe.filter(w=>{if(!w.complete)return false;const cw=(wish.color||'').toLowerCase().split(' ')[0];return w.category===wish.category&&cw&&(w.color||'').toLowerCase().includes(cw);});
+const findSimilar = (wish, wardrobe) => {
+  if (!wish.category) return [];
+  const wishGroup = getColourGroup(wish.color) || (wish.colors||[]).map(getColourGroup).find(Boolean);
+  return wardrobe.filter(w => {
+    if (isIncomplete && isIncomplete(w)) return false;
+    if (!w.complete && !w.photoUrl) return false;
+    // Colour must match by group
+    const wGroup = getColourGroup(w.color) || (w.colors||[]).map(getColourGroup).find(Boolean);
+    if (!wishGroup || !wGroup || wishGroup !== wGroup) return false;
+    // Subcategory match takes priority
+    if (wish.subcategory && w.subcategory) return wish.subcategory === w.subcategory;
+    // Fall back to category match only if no subcategory on either
+    return w.category === wish.category;
+  });
 };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const CATEGORY_MAP = {
-  'Tops':          ['T-shirts','Long sleeve tops','Shirts','Blouses','Knits & Jumpers','Tanks & Singlets','Vest top','Tube top','Crop tops','Off-shoulder top','Corset top','Hoodies & Sweatshirts','Bodysuit'],
+  'Tops':          ['T-shirts','Long sleeve tops','Shirts','Blouses','Knits & Jumpers','Cardigan','Tanks & Singlets','Vest top','Tube top','Crop tops','Off-shoulder top','Corset top','Hoodies & Sweatshirts','Bodysuit'],
   'Bottoms':       ['Jeans','Trousers','Shorts','Skirts','Skort','Mini skirts','Midi skirts','Maxi skirts','Flares','Leggings','Tracksuit pants','Cargo pants'],
   'Dresses':       ['Mini','Midi','Maxi','Slip','Bodycon','Shirt dress','Wrap dress','Sundress','Strapless','Corset dress','Romper'],
   'Activewear':    ['Sports tops','Sports bras','Sports bottoms','Shorts','Gym sets','Tracksuit set','Sports jacket','Leggings','Flares','Bike shorts'],
-  'Outerwear':     ['Coats','Jackets','Blazers','Shacket','Vests','Gilet','Puffer jackets','Leather jackets','Trench coats'],
+  'Outerwear':     ['Coats','Jackets','Blazers','Shacket','Cardigan','Vests','Gilet','Puffer jackets','Leather jackets','Trench coats'],
   'Shoes':         ['Sneakers','Heels','Platforms','Boots','Ankle boots','Chelsea boots','Knee-high boots','Sandals','Thongs & Slides','Flats','Mules','Loafers','Mary Janes'],
   'Bags':          ['Tote','Shoulder bag','Crossbody','Clutch','Mini bag','Barrel bag','Backpack','Belt bag'],
   'Accessories':   ['Jewellery','Watch','Scarves','Belts','Hats','Sunglasses','Gloves','Hair accessories','Socks'],
@@ -117,17 +128,17 @@ const CATS      = ['All',...Object.keys(CATEGORY_MAP)];
 
 // Colour groups — maps canonical filter label to recognised shade variations
 const COLOUR_GROUPS = {
-  'Neutrals': ['white','cream','ivory','off-white','off white','ecru','vanilla'],
-  'Black':    ['black','charcoal','onyx','jet'],
-  'Grey':     ['grey','gray','silver','slate','stone','graphite','pewter'],
-  'Brown':    ['brown','tan','camel','chocolate','cocoa','mocha','toffee','cognac','walnut','nude','beige','sand','khaki','biscuit','latte','oat','oatmeal','fawn'],
-  'Red':      ['red','burgundy','wine','maroon','cherry','crimson','rust','scarlet','carmine'],
-  'Pink':     ['pink','blush','rose','dusty rose','mauve','salmon','hot pink','fuchsia','baby pink','powder pink'],
-  'Orange':   ['orange','terracotta','burnt orange','coral','peach','apricot','amber','clay'],
-  'Yellow':   ['yellow','mustard','gold','lemon','butter','canary','golden','straw'],
-  'Green':    ['green','olive','sage','forest','mint','khaki','emerald','bottle green','moss','hunter','pistachio'],
-  'Blue':     ['blue','navy','denim','cobalt','baby blue','sky blue','teal','petrol','indigo','electric blue','midnight','powder blue'],
-  'Purple':   ['purple','violet','lavender','plum','eggplant','lilac','mauve','orchid','grape'],
+  'Neutrals': ['white','cream','ivory','off-white','off white','ecru','vanilla','beige','linen','parchment','porcelain','bone','alabaster','shell','mushroom','warm white','taupe'],
+  'Black':    ['black','charcoal','onyx','jet','ebony','noir','midnight black','ink black'],
+  'Grey':     ['grey','gray','silver','slate','stone','graphite','pewter','ash','dove','fog','smoke','pebble','cloud','cement','concrete','iron','storm','tin','warm grey','cool grey'],
+  'Brown':    ['brown','tan','camel','chocolate','cocoa','mocha','toffee','cognac','walnut','sand','khaki brown','biscuit','latte','oat','oatmeal','fawn','coffee','chai','butterscotch','hazelnut','chestnut','cinnamon','praline','caramel','espresso','tobacco','umber','sienna','bronze','copper'],
+  'Red':      ['red','burgundy','wine','maroon','cherry','crimson','rust','scarlet','carmine','berry','raspberry','cranberry','strawberry','tomato','brick','garnet','ruby','vermillion','cerise','poppy'],
+  'Pink':     ['pink','blush','rose','dusty rose','salmon','hot pink','fuchsia','baby pink','powder pink','bubblegum','flamingo','watermelon','petal','ballet','candy','nude pink'],
+  'Orange':   ['orange','terracotta','burnt orange','coral','peach','apricot','amber','clay','clementine','burnt sienna','cayenne','paprika','tangerine','pumpkin'],
+  'Yellow':   ['yellow','mustard','gold','lemon','butter','canary','golden','straw','marigold','saffron','chartreuse','honey','corn','daffodil'],
+  'Green':    ['green','olive','sage','forest','mint','khaki green','emerald','bottle green','moss','hunter','pistachio','avocado','fern','juniper','eucalyptus','jade','seafoam','clover','basil','lime','chartreuse'],
+  'Blue':     ['blue','navy','denim','cobalt','baby blue','sky blue','teal','petrol','indigo','electric blue','midnight','powder blue','cornflower','periwinkle','cerulean','aqua','turquoise','duck egg','steel blue','slate blue','ink'],
+  'Purple':   ['purple','violet','lavender','plum','eggplant','lilac','mauve','orchid','grape','amethyst','wisteria','heather','iris','mulberry'],
   'Multi':    ['multi','multicolour','multicolor','print','pattern','stripe','stripes','check','checked','floral','animal print','leopard','tie-dye','abstract','colour block','color block','spotted','polka dot','polka dots','spot'],
 };
 // Returns the canonical group for a colour string, or null
@@ -248,12 +259,13 @@ const CSS = `
   .scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
   .filterrow{display:flex;gap:6px;padding:10px 16px 6px;overflow-x:auto;}
   .filterrow::-webkit-scrollbar{display:none;}
+  @media(min-width:768px){.filterrow{flex-wrap:wrap;overflow-x:visible;}}
   .chip{flex-shrink:0;padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-size:12px;cursor:pointer;color:var(--muted);font-family:'Jost',sans-serif;transition:all .15s;white-space:nowrap;}
   .chip.active{background:var(--ink);border-color:var(--ink);color:#fff;}
   .seclbl{padding:6px 16px;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);font-weight:500;}
 
   /* ── WARDROBE GRID — squarer cards ── */
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 16px 24px;}
+  .grid{display:grid;grid-template-columns:repeat(var(--grid-cols,3),1fr);gap:10px;padding:0 16px 24px;}
   @media(min-width:768px){.grid{grid-template-columns:repeat(4,1fr);}}
   @media(min-width:1024px){.grid{grid-template-columns:repeat(5,1fr);}}
   .icard{border-radius:12px;overflow:hidden;background:#fff;border:1.5px solid var(--border);cursor:pointer;transition:transform .15s,box-shadow .15s;position:relative;}
@@ -354,6 +366,9 @@ const CSS = `
   .store-opt:hover{background:var(--cream);}
   .store-opt.add-new{color:var(--accent);font-weight:500;border-top:1px solid var(--border);}
   .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
+  .back-to-top{position:fixed;bottom:calc(70px + var(--safe-b));right:16px;width:38px;height:38px;border-radius:50%;background:var(--ink);color:#fff;border:none;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(0,0,0,.2);z-index:50;opacity:0;transition:opacity .2s;pointer-events:none;}
+  .back-to-top.visible{opacity:1;pointer-events:auto;}
+  @media(min-width:768px){.back-to-top{bottom:24px;right:24px;}}
   @keyframes spin{to{transform:rotate(360deg);}}
   .pz{border:2px dashed var(--border);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;background:var(--cream);position:relative;overflow:hidden;transition:border-color .2s;}
   .pz:active{border-color:var(--accent);}
@@ -1166,7 +1181,7 @@ function OutfitDetailSheet({outfit,wardrobe,onClose,onEdit,onDelete,onMarkWorn})
 }
 
 // ── Cards ─────────────────────────────────────────────────────────────────────
-function WardrobeCard({item,onClick,onToggleFav}){
+function WardrobeCard({item,onClick,onToggleFav,showLabels=true}){
   const needsInfo = !item.photoUrl||!item.name||!item.category||!item.size||!item.store||(Array.isArray(item.colors)?item.colors.length===0:!item.color);
   return <div className={`icard${needsInfo?' incomplete':''}`} onClick={onClick}>
     <div className="iphoto">
@@ -1178,7 +1193,7 @@ function WardrobeCard({item,onClick,onToggleFav}){
         {item.favourite?'★':'☆'}
       </span>}
     </div>
-    <div className="iinfo"><div className="iname">{item.name||'Untitled'}</div><div className="imeta">{item.brand||item.store||item.color||'—'}</div>{item.size&&<div className="isize">{item.sizeLabel||item.size}</div>}</div>
+    {showLabels&&<div className="iinfo"><div className="iname">{item.name||'Untitled'}</div><div className="imeta">{item.brand||item.store||item.color||'—'}</div></div>}
   </div>;
 }
 
@@ -1213,6 +1228,11 @@ function App(){
   const [colourFilter,setColourFilter] = useState('All');
   const [showFavsOnly,setShowFavsOnly] = useState(false);
   const [wardrobeSort,setWardrobeSort] = useState('default');
+  const [gridCols,setGridCols] = useState(3); // 3 or 4 on mobile
+  const [showLabels,setShowLabels] = useState(true); // show name/brand below thumbnail
+  const [imageOnly,setImageOnly] = useState(false); // hide text labels entirely
+  const [showViewOptions,setShowViewOptions] = useState(false);
+  const [scrollY,setScrollY] = useState(0);
   const [wishSort,setWishSort] = useState('rating');
   const [showWardrobeSort,setShowWardrobeSort] = useState(false);
   const [showWishSort,setShowWishSort] = useState(false);
@@ -1347,21 +1367,49 @@ function App(){
         {tab==='outfits'&&<button className="iconbtn" onClick={()=>setShowAddO(true)}>+</button>}
         {tab==='wishlist'&&<button className="iconbtn" onClick={()=>setShowAddWL(true)}>+</button>}
       </div>
-      <div className="scroll">
+      <div className="scroll" id="main-scroll" onScroll={e=>setScrollY(e.target.scrollTop)}>
 
         {tab==='wardrobe'&&<>
           <div className="filterrow">
             {CATS.map(c=><button key={c} className={`chip${catFilter===c?' active':''}`} onClick={()=>{setCat(c);setSubcat('All');setColourFilter('All');}}>{c}</button>)}
             <button className={`chip${showFavsOnly?' active':''}`} onClick={()=>setShowFavsOnly(p=>!p)}>★ Favourites</button>
           </div>
-          {/* Sort bar — sits below filters, right-aligned, distinct from filter chips */}
-          <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end',padding:'2px 16px 6px',gap:8}}>
+          {/* Sort + View options bar */}
+          <div style={{display:'flex',alignItems:'center',justifyContent:'flex-end',padding:'2px 16px 6px',gap:6}}>
             {wardrobeSort!=='default'&&<span style={{fontSize:10,color:'var(--accent)'}}>Sorted: {[['az','A–Z'],['za','Z–A'],['brand','Brand'],['store','Store'],['most_worn','Most worn'],['least_worn','Least worn'],['recent_worn','Recently worn'],['newest','Newest'],['oldest','Oldest'],['favs','Favourites']].find(([v])=>v===wardrobeSort)?.[1]}</span>}
-            <button onClick={()=>setShowWardrobeSort(p=>!p)}
-              style={{padding:'5px 14px',borderRadius:8,border:'1.5px solid var(--ink)',background:showWardrobeSort?'var(--ink)':'transparent',color:showWardrobeSort?'#fff':'var(--ink)',fontSize:10,letterSpacing:'1px',textTransform:'uppercase',fontWeight:600,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>
-              Sort by
+            <button onClick={()=>{setShowViewOptions(p=>!p);setShowWardrobeSort(false);}}
+              style={{padding:'5px 12px',borderRadius:8,border:'1.5px solid var(--ink)',background:showViewOptions?'var(--ink)':'transparent',color:showViewOptions?'#fff':'var(--ink)',fontSize:10,letterSpacing:'1px',textTransform:'uppercase',fontWeight:600,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>
+              View
+            </button>
+            <button onClick={()=>{setShowWardrobeSort(p=>!p);setShowViewOptions(false);}}
+              style={{padding:'5px 12px',borderRadius:8,border:'1.5px solid var(--ink)',background:showWardrobeSort?'var(--ink)':'transparent',color:showWardrobeSort?'#fff':'var(--ink)',fontSize:10,letterSpacing:'1px',textTransform:'uppercase',fontWeight:600,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>
+              Sort
             </button>
           </div>
+          {showViewOptions&&<div style={{margin:'0 16px 10px',background:'#fff',borderRadius:12,border:'1.5px solid var(--border)',padding:'12px 14px',boxShadow:'0 4px 16px rgba(0,0,0,.08)'}}>
+            <div style={{fontSize:10,letterSpacing:'1px',textTransform:'uppercase',color:'var(--muted)',marginBottom:10}}>View options</div>
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <span style={{fontSize:12,color:'var(--ink)'}}>Columns</span>
+                <div style={{display:'flex',gap:4}}>
+                  {[3,4].map(n=><button key={n} onClick={()=>setGridCols(n)}
+                    style={{width:36,height:28,borderRadius:6,border:'1.5px solid',borderColor:gridCols===n?'var(--ink)':'var(--border)',background:gridCols===n?'var(--ink)':'#fff',color:gridCols===n?'#fff':'var(--muted)',fontSize:12,cursor:'pointer',fontFamily:"'Jost',sans-serif",fontWeight:gridCols===n?600:400}}>{n}</button>)}
+                </div>
+              </div>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <span style={{fontSize:12,color:'var(--ink)'}}>Show labels</span>
+                <div onClick={()=>setShowLabels(p=>!p)} style={{width:44,height:26,background:showLabels&&!imageOnly?'var(--ink)':'#E0D9CF',borderRadius:13,position:'relative',cursor:'pointer',transition:'background .2s',opacity:imageOnly?.4:1}}>
+                  <div style={{position:'absolute',top:3,left:3,width:20,height:20,background:'#fff',borderRadius:'50%',transition:'transform .2s',boxShadow:'0 1px 3px rgba(0,0,0,.2)',transform:showLabels&&!imageOnly?'translateX(18px)':'none'}}/>
+                </div>
+              </div>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <span style={{fontSize:12,color:'var(--ink)'}}>Images only</span>
+                <div onClick={()=>setImageOnly(p=>!p)} style={{width:44,height:26,background:imageOnly?'var(--ink)':'#E0D9CF',borderRadius:13,position:'relative',cursor:'pointer',transition:'background .2s'}}>
+                  <div style={{position:'absolute',top:3,left:3,width:20,height:20,background:'#fff',borderRadius:'50%',transition:'transform .2s',boxShadow:'0 1px 3px rgba(0,0,0,.2)',transform:imageOnly?'translateX(18px)':'none'}}/>
+                </div>
+              </div>
+            </div>
+          </div>}
           {showWardrobeSort&&<div style={{margin:'0 16px 10px',background:'#fff',borderRadius:12,border:'1.5px solid var(--border)',padding:'10px 12px',boxShadow:'0 4px 16px rgba(0,0,0,.08)'}}>
             <div style={{fontSize:10,letterSpacing:'1px',textTransform:'uppercase',color:'var(--muted)',marginBottom:8}}>Sort wardrobe by</div>
             <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
@@ -1397,7 +1445,7 @@ function App(){
             </div>
           </>}
           {fW.length===0?<div className="empty"><div style={{fontSize:40,marginBottom:10}}>🧺</div><div className="empty-t">Your wardrobe is empty</div><div className="empty-s">Tap + to add your first item.</div></div>
-          :<>{fW.some(isIncomplete)&&<><div className="seclbl">Needs info</div><div className="grid">{fW.filter(isIncomplete).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}} onToggleFav={toggleFavourite}/>)}</div></>}{fW.some(i=>!isIncomplete(i))&&<><div className="seclbl">{catFilter==='All'?'All items':catFilter} · {fW.filter(i=>!isIncomplete(i)).length}</div><div className="grid">{fW.filter(i=>!isIncomplete(i)).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}} onToggleFav={toggleFavourite}/>)}</div></>}</>}
+          :<>{fW.some(isIncomplete)&&<><div className="seclbl">Needs info</div><div className="grid" style={{'--grid-cols':gridCols}}>{fW.filter(isIncomplete).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}} onToggleFav={toggleFavourite} showLabels={showLabels&&!imageOnly}/>)}</div></>}{fW.some(i=>!isIncomplete(i))&&<><div className="seclbl">{catFilter==='All'?'All items':catFilter} · {fW.filter(i=>!isIncomplete(i)).length}</div><div className="grid" style={{'--grid-cols':gridCols}}>{fW.filter(i=>!isIncomplete(i)).map(i=><WardrobeCard key={i.id} item={i} onClick={()=>{setSelItem(i);setEditItem(false);}} onToggleFav={toggleFavourite} showLabels={showLabels&&!imageOnly}/>)}</div></>}</>}
         </>}
 
         {tab==='outfits'&&<>
@@ -1681,6 +1729,7 @@ function App(){
       </div>
     </div>
   </div>}
+  {(tab==='wardrobe'||tab==='wishlist')&&scrollY>400&&<button className="back-to-top visible" onClick={()=>document.getElementById('main-scroll').scrollTo({top:0,behavior:'smooth'})}>↑</button>}
   {showAddW   && <AddWardrobeSheet  onSave={addItem}  onClose={()=>setShowAddW(false)}  stores={stores} onAddStore={addStore} wardrobe={wardrobe} extraBrands={extraBrands} onAddBrand={addBrand} wardrobeColours={wardrobeColours} extraColours={extraColours} onAddColour={addColour}/>}
   {showAddWL  && <AddWishSheet      onSave={addWish}  onClose={()=>setShowAddWL(false)} stores={stores} onAddStore={addStore}/>}
   {showAddO   && <OutfitBuilderSheet wardrobe={wardrobe} outfit={null} onSave={saveOutfit} onClose={()=>setShowAddO(false)}/>}
