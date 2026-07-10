@@ -1413,7 +1413,7 @@ function App(){
     let score=0;
     const tags=outfit.tags||[];
     // Occasion match
-    const occMap={Casual:['Casual','Weekend','Relaxed'],Work:['Work','Elevated basics'],Gym:['Gym','Sport','Active'],Going out:['Going out','Evening','Dinner','Date night'],Evening:['Evening','Dinner','Date night','Event']};
+    const occMap={Casual:['Casual','Weekend','Relaxed'],Work:['Work','Elevated basics'],Gym:['Gym','Sport','Active'],'Going out':['Going out','Evening','Dinner','Date night'],Evening:['Evening','Dinner','Date night','Event']};
     const targetTags=occMap[occasion]||[];
     if(tags.some(t=>targetTags.includes(t)))score+=30;
     // Weather tags
@@ -1430,7 +1430,7 @@ function App(){
     const season=getSeason();
     const palette=SEASON_PALETTES[season]||[];
     const activeItems=activeWardrobe.filter(i=>!isIncomplete(i));
-    const occMap={Casual:['Casual','Weekend'],Work:['Work'],Gym:['Gym','Sport'],Going out:['Going out','Evening'],Evening:['Evening','Dinner']};
+    const occMap={Casual:['Casual','Weekend'],Work:['Work'],Gym:['Gym','Sport'],'Going out':['Going out','Evening'],Evening:['Evening','Dinner']};
     const targetOcc=occMap[occasion]||['Casual'];
     // Pick anchor — most worn item matching occasion, preferring favourites
     const candidates=activeItems.filter(i=>(i.occasions||[]).some(o=>targetOcc.includes(o))||i.favourite).sort((a,b)=>{const af=a.favourite?100:0;const bf=b.favourite?100:0;return(bf+b.wearCount)-(af+a.wearCount);});
