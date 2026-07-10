@@ -98,14 +98,10 @@ const findSimilar = (wish, wardrobe) => {
   if (!wish.category) return [];
   const wishGroup = getColourGroup(wish.color) || (wish.colors||[]).map(getColourGroup).find(Boolean);
   return wardrobe.filter(w => {
-    if (isIncomplete && isIncomplete(w)) return false;
-    if (!w.complete && !w.photoUrl) return false;
-    // Colour must match by group
+    if (!w.name) return false; // basic guard instead of isIncomplete
     const wGroup = getColourGroup(w.color) || (w.colors||[]).map(getColourGroup).find(Boolean);
     if (!wishGroup || !wGroup || wishGroup !== wGroup) return false;
-    // Subcategory match takes priority
     if (wish.subcategory && w.subcategory) return wish.subcategory === w.subcategory;
-    // Fall back to category match only if no subcategory on either
     return w.category === wish.category;
   });
 };
@@ -1427,25 +1423,91 @@ function App(){
   }
 
   function generateOutfitCombo(occasion,weather){
-    const season=getSeason();
-    const palette=SEASON_PALETTES[season]||[];
-    const activeItems=activeWardrobe.filter(i=>!isIncomplete(i));
-    const occMap={Casual:['Casual','Weekend'],Work:['Work'],Gym:['Gym','Sport'],'Going out':['Going out','Evening'],Evening:['Evening','Dinner']};
-    const targetOcc=occMap[occasion]||['Casual'];
-    // Pick anchor — most worn item matching occasion, preferring favourites
-    const candidates=activeItems.filter(i=>(i.occasions||[]).some(o=>targetOcc.includes(o))||i.favourite).sort((a,b)=>{const af=a.favourite?100:0;const bf=b.favourite?100:0;return(bf+b.wearCount)-(af+a.wearCount);});
-    const anchor=candidates[0]||activeItems.sort((a,b)=>b.wearCount-a.wearCount)[0];
-    if(!anchor)return null;
-    // Find less-worn complementary items
-    const anchorCat=anchor.category;
-    const needCats=anchorCat==='Tops'||anchorCat==='Dresses'?['Bottoms','Shoes','Outerwear']:['Tops','Shoes','Outerwear'];
-    const picks=[anchor];
-    needCats.forEach(cat=>{
-      const opts=activeItems.filter(i=>i.category===cat&&i.id!==anchor.id)
-        .sort((a,b)=>a.wearCount-b.wearCount); // least worn first
-      if(opts.length)picks.push(opts[0]);
-    });
-    return picks;
+    const temp = weather?.temp ?? 20;
+    const cold = temp < 16;
+    const items = activeWardrobe.filter(i => !isIncomplete(i));
+    const byWear = (arr) => [...arr].sort((a,b) => a.wearCount - b.wearCount); // least worn first
+    const anchor = (arr) => [...arr].sort((a,b) => {
+      // anchor = most worn, favourites get a boost
+      return (b.wearCount + (b.favourite?20:0)) - (a.wearCount + (a.favourite?20:0));
+    })[0];
+
+    const get = (cat, subcats=[]) => {
+      const pool = items.filter(i => i.category === cat && (subcats.length===0 || subcats.includes(i.subcategory)));
+      return pool;
+    };
+
+    const picks = [];
+    const usedSubcats = new Set();
+
+    function addItem(item) {
+      if (!item) return;
+      if (usedSubcats.has(item.subcategory)) return; // no duplicate subcategories
+      picks.push(item);
+      if (item.subcategory) usedSubcats.add(item.subcategory);
+    }
+
+    if (occasion === 'Gym') {
+      // Gym: Activewear top + Activewear bottom + Sneakers only
+      const gymTops = get('Activewear', ['Sports tops','Sports bras','Gym sets','Tracksuit set']);
+      const gymBottoms = get('Activewear', ['Sports bottoms','Leggings','Shorts','Bike shorts','Tights','Tracksuit pants','Flares']);
+      const sneakers = get('Shoes', ['Sneakers']);
+      addItem(anchor(gymTops));
+      addItem(byWear(gymBottoms)[0]);
+      addItem(byWear(sneakers)[0] || byWear(get('Shoes'))[0]);
+      if (cold) {
+        const gymJacket = get('Activewear', ['Sports jacket','Tracksuit set']);
+        const outer = byWear(gymJacket)[0] || byWear(get('Outerwear', ['Jackets','Puffer jackets']))[0];
+        addItem(outer);
+      }
+      return picks;
+    }
+
+    // All other occasions — build base layer first
+    const dresses = get('Dresses');
+    const tops = get('Tops');
+    const bottoms = get('Bottoms');
+
+    // Decide base: anchor on most worn top OR dress
+    const topAnchor = anchor(tops);
+    const dressAnchor = anchor(dresses);
+    let usesDress = false;
+
+    if (dressAnchor && (!topAnchor || dressAnchor.wearCount + (dressAnchor.favourite?20:0) >= topAnchor.wearCount + (topAnchor.favourite?20:0))) {
+      addItem(dressAnchor);
+      usesDress = true;
+    } else if (topAnchor) {
+      addItem(topAnchor);
+    }
+
+    // Add bottoms if not wearing a dress
+    if (!usesDress && bottoms.length) {
+      addItem(byWear(bottoms)[0]);
+    }
+
+    // Shoes — occasion-appropriate
+    const shoeSubcats = occasion === 'Work'
+      ? ['Heels','Loafers','Flats','Mules','Boots','Ankle boots']
+      : occasion === 'Going out' || occasion === 'Evening'
+        ? ['Heels','Boots','Ankle boots','Mules','Platforms']
+        : ['Sneakers','Flats','Sandals','Mules','Loafers','Ankle boots','Boots','Thongs & Slides'];
+    const shoePool = get('Shoes', shoeSubcats);
+    addItem(byWear(shoePool.length ? shoePool : get('Shoes'))[0]);
+
+    // Outerwear — only if cold or Layered occasion
+    if (cold || occasion === 'Work') {
+      const outerPool = occasion === 'Work'
+        ? get('Outerwear', ['Blazers','Coats','Trench coats','Jackets','Cardigan'])
+        : get('Outerwear');
+      const outerItem = byWear(outerPool)[0];
+      addItem(outerItem);
+    }
+
+    // Bag — optional, add least worn
+    const bagItem = byWear(get('Bags'))[0];
+    if (bagItem) addItem(bagItem);
+
+    return picks.filter(Boolean);
   }
 
   function generateSuggestion(){
