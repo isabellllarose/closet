@@ -87,8 +87,8 @@ function isOverdue(iso, n=30) {
 
 // ── Data helpers ──────────────────────────────────────────────────────────────
 const uid    = () => `${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
-const toRow  = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,brand:i.brand||null,store:i.store||null,colors:Array.isArray(i.colors)?i.colors:(i.color?[i.color]:[]),size:i.size||null,size_label:i.sizeLabel||i.size||null,photo_url:i.photoUrl||null,occasions:i.occasions||[],date_bought:i.dateBought||null,last_worn_date:i.lastWornDate||null,wear_count:i.wearCount||0,notes:i.notes||null,complete:!!i.complete,favourite:!!i.favourite,archived:!!i.archived,price:i.price||null});
-const fromRow= r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,brand:r.brand,store:r.store,colors:Array.isArray(r.colors)?r.colors:(r.color?[r.color]:[]),color:Array.isArray(r.colors)&&r.colors.length?r.colors[0]:(r.color||null),size:r.size,sizeLabel:r.size_label,photoUrl:r.photo_url,occasions:r.occasions||[],dateBought:r.date_bought,lastWornDate:r.last_worn_date,wearCount:r.wear_count||0,notes:r.notes,complete:r.complete,favourite:!!r.favourite,archived:!!r.archived,price:r.price||null});
+const toRow  = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,brand:i.brand||null,store:i.store||null,colors:Array.isArray(i.colors)?i.colors:(i.color?[i.color]:[]),size:i.size||null,size_label:i.sizeLabel||i.size||null,photo_url:i.photoUrl||null,occasions:i.occasions||[],date_bought:i.dateBought||null,last_worn_date:i.lastWornDate||null,wear_count:i.wearCount||0,notes:i.notes||null,complete:!!i.complete,favourite:!!i.favourite,archived:!!i.archived,price:i.price||null,pair_ids:i.pairIds||[]});
+const fromRow= r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,brand:r.brand,store:r.store,colors:Array.isArray(r.colors)?r.colors:(r.color?[r.color]:[]),color:Array.isArray(r.colors)&&r.colors.length?r.colors[0]:(r.color||null),size:r.size,sizeLabel:r.size_label,photoUrl:r.photo_url,occasions:r.occasions||[],dateBought:r.date_bought,lastWornDate:r.last_worn_date,wearCount:r.wear_count||0,notes:r.notes,complete:r.complete,favourite:!!r.favourite,archived:!!r.archived,price:r.price||null,pairIds:Array.isArray(r.pair_ids)?r.pair_ids:[]});
 const toWR   = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,store:i.store||null,brand:i.brand||null,url:i.url||null,price:i.price||null,orig_price:i.origPrice||null,on_sale:!!i.onSale,rating:i.rating||3,photo_urls:i.photoUrls||[],color:i.color||null,notes:i.notes||null,added_date:i.addedDate||today2()});
 const fromWR = r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,store:r.store,brand:r.brand,url:r.url,price:r.price,origPrice:r.orig_price,onSale:r.on_sale,rating:r.rating||3,photoUrls:Array.isArray(r.photo_urls)?r.photo_urls:(r.photo_urls?[r.photo_urls]:[]),color:r.color,notes:r.notes,addedDate:r.added_date});
 const toOR   = o => ({id:o.id,tags:o.tags||[],notes:o.notes||null,item_ids:o.itemIds||[],item_positions:o.positions||null,wear_count:o.wearCount||0,last_worn_date:o.lastWornDate||null});
@@ -932,7 +932,7 @@ function EditWardrobeSheet({item,onSave,onCancel,stores,onAddStore,wardrobe=[],e
     <FRow><FGrp label="Total wears" style={{flex:1,marginTop:4}}><FInp value={f.wearCount} type="number" onChange={e=>up({wearCount:parseInt(e.target.value)||0})}/></FGrp><div style={{flex:1,marginTop:4}}><DateField label="Last worn" value={f.lastWornDate} onChange={v=>up({lastWornDate:v})}/></div></FRow>
   </Sheet>;
 }
-function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete,onToggleFav,onToggleArchive}){
+function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete,onToggleFav,onToggleArchive,wardrobe=[],onAddPairing,onRemovePairing,onViewItem}){
   const [showLog,setShowLog]=useState(false);
   return <Sheet title={item.name||'Untitled'} onClose={onClose}>
     <div style={{width:'100%',background:'#fff',borderRadius:14,marginBottom:14,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
@@ -946,6 +946,26 @@ function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete,onToggleFav
       <button onClick={onEdit} style={{flex:1,padding:12,border:'1.5px solid var(--border)',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Edit</button>
       <button onClick={onDelete} style={{padding:'12px 14px',border:'1.5px solid #EAC8C8',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',color:'var(--red)',fontFamily:"'Jost',sans-serif"}}>🗑</button>
     </div>
+    {/* Pairs with */}
+    {(()=>{
+      const pairs = (item.pairIds||[]).map(id=>wardrobe.find(w=>w.id===id)).filter(Boolean);
+      return <div style={{marginTop:14}}>
+        <div style={{fontSize:10,letterSpacing:'1px',textTransform:'uppercase',color:'var(--muted)',marginBottom:8}}>Pairs with</div>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
+          {pairs.map(p=><div key={p.id} style={{position:'relative'}}>
+            <div onClick={()=>onViewItem&&onViewItem(p)}
+              style={{width:52,height:64,borderRadius:8,background:'#fff',border:'1.5px solid var(--border)',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+              {p.photoUrl?<img src={p.photoUrl} alt={p.name} style={{width:'100%',height:'100%',objectFit:'contain'}}/>
+              :<span style={{fontSize:18,opacity:.3}}>{CAT_EMOJI[p.category]||'👗'}</span>}
+            </div>
+            <button onClick={()=>onRemovePairing&&onRemovePairing(item.id,p.id)}
+              style={{position:'absolute',top:-5,right:-5,width:16,height:16,borderRadius:'50%',background:'var(--muted)',border:'none',color:'#fff',fontSize:9,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>✕</button>
+          </div>)}
+          <div onClick={onAddPairing}
+            style={{width:52,height:64,borderRadius:8,border:'2px dashed var(--border)',background:'var(--cream)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',fontSize:20,color:'var(--muted)'}}>+</div>
+        </div>
+      </div>;
+    })()}
     <button onClick={onToggleArchive} style={{width:'100%',marginTop:8,padding:'10px',border:'1.5px solid var(--border)',borderRadius:12,background:'none',fontSize:12,cursor:'pointer',fontFamily:"'Jost',sans-serif",color:'var(--muted)',textAlign:'center'}}>
       {item.archived?'↩ Restore to wardrobe':'📦 Mark as sold / donated'}
     </button>
@@ -1333,6 +1353,7 @@ function App(){
   const [openStore,setOS]   = useState(null);
   const [rewearModal,setRewearModal] = useState(null);
   const [showArchive,setShowArchive] = useState(false);
+  const [showPairPicker,setShowPairPicker] = useState(false);
   const [jewellery,setJewellery] = useState([]);
   const [selJewel,setSelJewel] = useState(null);
   const [showAddJ,setShowAddJ] = useState(false);
@@ -1389,6 +1410,37 @@ function App(){
   async function logWear(item,date){const u={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};try{await sb.upd('wardrobe',item.id,{last_worn_date:date,wear_count:u.wearCount});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
   async function toggleFavourite(item){const u={...item,favourite:!item.favourite};try{await sb.upd('wardrobe',item.id,{favourite:u.favourite});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
   async function toggleArchive(item){const u={...item,archived:!item.archived};try{await sb.upd('wardrobe',item.id,{archived:u.archived});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
+
+  // Pairings — bidirectional
+  async function addPairing(itemId, pairedId) {
+    // Add pairedId to item's pairIds, and itemId to paired item's pairIds
+    const item = wardrobe.find(i => i.id === itemId);
+    const paired = wardrobe.find(i => i.id === pairedId);
+    if (!item || !paired) return;
+    const newItemPairs = [...new Set([...(item.pairIds||[]), pairedId])];
+    const newPairedPairs = [...new Set([...(paired.pairIds||[]), itemId])];
+    try {
+      await sb.upd('wardrobe', itemId, {pair_ids: newItemPairs});
+      await sb.upd('wardrobe', pairedId, {pair_ids: newPairedPairs});
+      setW(p => p.map(x => x.id === itemId ? {...x, pairIds: newItemPairs}
+        : x.id === pairedId ? {...x, pairIds: newPairedPairs} : x));
+      setSelItem(i => i ? {...i, pairIds: newItemPairs} : i);
+    } catch(e) { console.error(e); }
+  }
+  async function removePairing(itemId, pairedId) {
+    const item = wardrobe.find(i => i.id === itemId);
+    const paired = wardrobe.find(i => i.id === pairedId);
+    if (!item || !paired) return;
+    const newItemPairs = (item.pairIds||[]).filter(id => id !== pairedId);
+    const newPairedPairs = (paired.pairIds||[]).filter(id => id !== itemId);
+    try {
+      await sb.upd('wardrobe', itemId, {pair_ids: newItemPairs});
+      await sb.upd('wardrobe', pairedId, {pair_ids: newPairedPairs});
+      setW(p => p.map(x => x.id === itemId ? {...x, pairIds: newItemPairs}
+        : x.id === pairedId ? {...x, pairIds: newPairedPairs} : x));
+      setSelItem(i => i ? {...i, pairIds: newItemPairs} : i);
+    } catch(e) { console.error(e); }
+  }
 
   // Jewellery CRUD
   async function addJewel(i){try{await sb.ins('jewellery',toJR(i));setJewellery(p=>[...p,i]);}catch(e){console.error(e);}setShowAddJ(false);}
@@ -1514,14 +1566,12 @@ function App(){
     if(!gdOccasion)return;
     setGdLoading(true);
     setTimeout(()=>{
-      // Best saved outfit
+      // Option A — saved outfits only, always show highest scoring
       const scored=[...outfits].map(o=>({o,s:scoreOutfit(o,gdOccasion,gdWeather)})).sort((a,b)=>b.s-a.s);
-      const bestSaved=scored[0]?.s>20?scored[0].o:null;
-      // Generated combo
-      const combo=generateOutfitCombo(gdOccasion,gdWeather);
-      setGdSuggestion({savedOutfit:bestSaved,combo});
+      const bestSaved=scored[0]?.o||null;
+      setGdSuggestion({savedOutfit:bestSaved});
       setGdLoading(false);
-    },400);
+    },300);
   }
 
   async function geocodeLocation(query){
@@ -1700,70 +1750,95 @@ function App(){
 
         {tab==='outfits'&&<>
           {/* Getting Dressed card */}
-          <div style={{margin:'10px 16px 0',background:'var(--ink)',borderRadius:16,padding:'14px 16px',color:'#fff'}}>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
-              <div>
-                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:300,letterSpacing:1}}>Getting dressed</div>
-                <div style={{fontSize:10,color:'rgba(255,255,255,.5)',marginTop:1}}>
-                  {gdEditingLocation
-                    ?<div style={{display:'flex',gap:4,marginTop:2}}>
-                      <input value={gdLocationInput} onChange={e=>setGdLocationInput(e.target.value)}
-                        onKeyDown={e=>e.key==='Enter'&&geocodeLocation(gdLocationInput)}
-                        placeholder="Suburb or postcode…"
-                        style={{background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.2)',borderRadius:6,padding:'4px 8px',color:'#fff',fontSize:11,fontFamily:"'Jost',sans-serif",outline:'none',width:160}}/>
-                      <button onClick={()=>geocodeLocation(gdLocationInput)} style={{padding:'4px 8px',background:'var(--accent)',border:'none',borderRadius:6,color:'#fff',fontSize:11,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Go</button>
-                      <button onClick={()=>setGdEditingLocation(false)} style={{padding:'4px 8px',background:'rgba(255,255,255,.1)',border:'none',borderRadius:6,color:'rgba(255,255,255,.6)',fontSize:11,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>✕</button>
-                    </div>
-                    :<span onClick={()=>{setGdEditingLocation(true);setGdLocationInput('');}} style={{cursor:'pointer',textDecoration:'underline dotted'}}>📍 {gdLocation.name}</span>
-                  }
+          {(()=>{
+            // Weather-tinted background
+            const code = gdWeather?.code ?? -1;
+            const temp = gdWeather?.temp ?? 20;
+            let bgGrad = 'linear-gradient(135deg,#F5F0E8,#EDE8DF)'; // default warm cream
+            if (code >= 61 && code <= 82) bgGrad = 'linear-gradient(135deg,#EAF0F5,#DDE8F0)'; // rain — cool blue-grey
+            else if (code >= 45 && code <= 48) bgGrad = 'linear-gradient(135deg,#EDEAE5,#E2DED8)'; // fog — muted
+            else if (code >= 2 && code <= 3) bgGrad = 'linear-gradient(135deg,#EEEAE4,#E5E0D8)'; // cloudy — soft grey-cream
+            else if (code === 0 || code === 1) {
+              if (temp > 24) bgGrad = 'linear-gradient(135deg,#FDF5E8,#F5ECD8)'; // sunny + warm — golden cream
+              else bgGrad = 'linear-gradient(135deg,#F0EEF8,#E8E5F0)'; // sunny + cool — pale blue-lavender
+            }
+            if (temp < 12) bgGrad = 'linear-gradient(135deg,#EAF0F8,#DDE8F5)'; // cold — icy blue
+            return <div style={{margin:'10px 16px 0',background:bgGrad,borderRadius:16,padding:'14px 16px',border:'1px solid rgba(0,0,0,.07)'}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+                <div>
+                  <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:300,color:'var(--ink)',letterSpacing:1}}>Getting dressed</div>
+                  <div style={{fontSize:10,color:'var(--muted)',marginTop:1}}>
+                    {gdEditingLocation
+                      ?<div style={{display:'flex',gap:4,marginTop:2}}>
+                        <input value={gdLocationInput} onChange={e=>setGdLocationInput(e.target.value)}
+                          onKeyDown={e=>e.key==='Enter'&&geocodeLocation(gdLocationInput)}
+                          placeholder="Suburb or postcode…"
+                          style={{background:'rgba(255,255,255,.7)',border:'1px solid var(--border)',borderRadius:6,padding:'4px 8px',color:'var(--ink)',fontSize:11,fontFamily:"'Jost',sans-serif",outline:'none',width:150}}/>
+                        <button onClick={()=>geocodeLocation(gdLocationInput)} style={{padding:'4px 8px',background:'var(--accent)',border:'none',borderRadius:6,color:'#fff',fontSize:11,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Go</button>
+                        <button onClick={()=>setGdEditingLocation(false)} style={{padding:'4px 6px',background:'rgba(0,0,0,.07)',border:'none',borderRadius:6,color:'var(--muted)',fontSize:11,cursor:'pointer'}}>✕</button>
+                      </div>
+                      :<span onClick={()=>{setGdEditingLocation(true);setGdLocationInput('');}} style={{cursor:'pointer',color:'var(--muted)',textDecoration:'underline dotted'}}>📍 {gdLocation.name}</span>
+                    }
+                  </div>
                 </div>
+                {gdWeather
+                  ?<div style={{textAlign:'right'}}>
+                    <div style={{fontSize:24}}>{weatherIcon(gdWeather.code)}</div>
+                    <div style={{fontSize:18,fontWeight:300,color:'var(--ink)',fontFamily:"'Cormorant Garamond',serif"}}>{gdWeather.temp}°C</div>
+                    <div style={{fontSize:9,color:'var(--muted)'}}>{WEATHER_CONDITION_MAP[gdWeather.code]||''}</div>
+                    {gdWeather.rain>30&&<div style={{fontSize:9,color:'var(--accent)'}}>☂ {gdWeather.rain}% rain</div>}
+                  </div>
+                  :<button onClick={fetchWeather} style={{padding:'7px 12px',background:'rgba(255,255,255,.6)',border:'1px solid var(--border)',borderRadius:8,color:'var(--ink)',fontSize:11,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Check weather</button>
+                }
               </div>
-              {gdWeather
-                ?<div style={{textAlign:'right'}}>
-                  <div style={{fontSize:22}}>{weatherIcon(gdWeather.code)}</div>
-                  <div style={{fontSize:16,fontWeight:300}}>{gdWeather.temp}°C</div>
-                  <div style={{fontSize:9,color:'rgba(255,255,255,.5)'}}>{gdWeather.rain>30?`${gdWeather.rain}% rain`:'No rain'}</div>
-                </div>
-                :<button onClick={fetchWeather} style={{padding:'6px 10px',background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.2)',borderRadius:8,color:'rgba(255,255,255,.7)',fontSize:11,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Load weather</button>
-              }
-            </div>
-            {/* Occasion picker */}
-            <div style={{display:'flex',gap:5,marginBottom:10,flexWrap:'wrap'}}>
-              {['Casual','Work','Gym','Going out','Evening'].map(occ=><button key={occ} onClick={()=>{setGdOccasion(occ);setGdSuggestion(null);}}
-                style={{padding:'5px 11px',borderRadius:20,fontSize:11,border:'1px solid',borderColor:gdOccasion===occ?'#fff':'rgba(255,255,255,.25)',background:gdOccasion===occ?'#fff':'transparent',color:gdOccasion===occ?'var(--ink)':'rgba(255,255,255,.7)',cursor:'pointer',fontFamily:"'Jost',sans-serif",transition:'all .15s'}}>{occ}</button>)}
-            </div>
-            {gdOccasion&&<button onClick={generateSuggestion} disabled={gdLoading}
-              style={{width:'100%',padding:'10px',background:'var(--accent)',border:'none',borderRadius:10,color:'#fff',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif",opacity:gdLoading?.6:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-              {gdLoading?<><div className="spinner"/>Putting together an outfit…</>:'✨ Suggest an outfit'}
-            </button>}
-            {/* Suggestion results */}
-            {gdSuggestion&&<div style={{marginTop:10}}>
-              {gdSuggestion.savedOutfit&&<div style={{marginBottom:8}}>
-                <div style={{fontSize:10,color:'rgba(255,255,255,.5)',letterSpacing:.8,textTransform:'uppercase',marginBottom:5}}>From your saved outfits</div>
-                <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:2}}>
-                  {gdSuggestion.savedOutfit.itemIds.map(id=>wardrobe.find(w=>w.id===id)).filter(Boolean).map(item=><div key={item.id} style={{flexShrink:0,textAlign:'center'}}>
-                    <div style={{width:52,height:64,borderRadius:8,background:'#fff',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                      {item.photoUrl?<img src={item.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<span style={{fontSize:20,opacity:.4}}>{CAT_EMOJI[item.category]||'👗'}</span>}
-                    </div>
-                    <div style={{fontSize:8,color:'rgba(255,255,255,.5)',marginTop:2,width:52,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.name}</div>
-                  </div>)}
-                </div>
-                <button onClick={()=>{setSelOutfit(gdSuggestion.savedOutfit);setEditOutfit(false);}} style={{marginTop:5,fontSize:10,color:'rgba(255,255,255,.6)',background:'none',border:'none',cursor:'pointer',fontFamily:"'Jost',sans-serif",textDecoration:'underline'}}>View full outfit →</button>
-              </div>}
-              {gdSuggestion.combo&&<div>
-                <div style={{fontSize:10,color:'rgba(255,255,255,.5)',letterSpacing:.8,textTransform:'uppercase',marginBottom:5}}>{gdSuggestion.savedOutfit?'Or try this combination':'Try this combination'}</div>
-                <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:2}}>
-                  {gdSuggestion.combo.map(item=><div key={item.id} style={{flexShrink:0,textAlign:'center'}}>
-                    <div style={{width:52,height:64,borderRadius:8,background:'#fff',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                      {item.photoUrl?<img src={item.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<span style={{fontSize:20,opacity:.4}}>{CAT_EMOJI[item.category]||'👗'}</span>}
-                    </div>
-                    <div style={{fontSize:8,color:'rgba(255,255,255,.5)',marginTop:2,width:52,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.name}</div>
-                  </div>)}
-                </div>
-                <button onClick={()=>setGdSuggestion(p=>({...p,combo:generateOutfitCombo(gdOccasion,gdWeather)}))} style={{marginTop:5,fontSize:10,color:'rgba(255,255,255,.6)',background:'none',border:'none',cursor:'pointer',fontFamily:"'Jost',sans-serif",textDecoration:'underline'}}>Shuffle ↺</button>
-              </div>}
-            </div>}
-          </div>
+              {/* Occasion chips */}
+              <div style={{display:'flex',gap:5,marginBottom:10,flexWrap:'wrap'}}>
+                {['Casual','Work','Gym','Going out','Evening'].map(occ=><button key={occ} onClick={()=>{setGdOccasion(occ);setGdSuggestion(null);}}
+                  style={{padding:'5px 12px',borderRadius:20,fontSize:11,border:'1.5px solid',borderColor:gdOccasion===occ?'var(--ink)':'rgba(0,0,0,.15)',background:gdOccasion===occ?'var(--ink)':'rgba(255,255,255,.6)',color:gdOccasion===occ?'#fff':'var(--ink)',cursor:'pointer',fontFamily:"'Jost',sans-serif",transition:'all .15s'}}>{occ}</button>)}
+              </div>
+              {gdOccasion&&<button onClick={generateSuggestion} disabled={gdLoading}
+                style={{width:'100%',padding:'10px',background:'var(--ink)',border:'none',borderRadius:10,color:'#fff',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif",opacity:gdLoading?.6:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,marginBottom:gdSuggestion?10:0}}>
+                {gdLoading?<><div className="spinner"/>Finding your outfit…</>:'✨ Suggest an outfit'}
+              </button>}
+              {/* Suggestion — saved outfit only (Option A) */}
+              {gdSuggestion&&gdSuggestion.savedOutfit&&(()=>{
+                const outfit = gdSuggestion.savedOutfit;
+                const items = outfit.itemIds.map(id=>wardrobe.find(w=>w.id===id)).filter(Boolean);
+                return <div>
+                  <div style={{fontSize:10,color:'var(--muted)',letterSpacing:.8,textTransform:'uppercase',marginBottom:8}}>Suggested outfit</div>
+                  {/* Vertical stack — items shown tall like on a body */}
+                  <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:8}}>
+                    {items.map(item=><div key={item.id} style={{display:'flex',alignItems:'center',gap:10,background:'rgba(255,255,255,.7)',borderRadius:10,padding:'8px 10px',border:'1px solid rgba(0,0,0,.06)'}}>
+                      <div style={{width:48,height:60,borderRadius:7,overflow:'hidden',background:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                        {item.photoUrl?<img src={item.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'contain'}}/>
+                        :<span style={{fontSize:22,opacity:.3}}>{CAT_EMOJI[item.category]||'👗'}</span>}
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:12,fontWeight:500,color:'var(--ink)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.name}</div>
+                        <div style={{fontSize:10,color:'var(--muted)'}}>{item.subcategory||item.category}</div>
+                      </div>
+                    </div>)}
+                  </div>
+                  <div style={{display:'flex',gap:6}}>
+                    <button onClick={()=>{setSelOutfit(outfit);setEditOutfit(false);}}
+                      style={{flex:1,padding:'8px',background:'rgba(255,255,255,.6)',border:'1px solid var(--border)',borderRadius:8,fontSize:11,cursor:'pointer',fontFamily:"'Jost',sans-serif",color:'var(--ink)'}}>View outfit →</button>
+                    <button onClick={()=>{
+                        // Shuffle to next best scoring outfit
+                        const scored=[...outfits].map(o=>({o,s:scoreOutfit(o,gdOccasion,gdWeather)})).sort((a,b)=>b.s-a.s);
+                        const currentIdx=scored.findIndex(x=>x.o.id===outfit.id);
+                        const next=scored[(currentIdx+1)%scored.length]?.o||outfit;
+                        setGdSuggestion(p=>({...p,savedOutfit:next}));
+                      }}
+                      style={{padding:'8px 12px',background:'rgba(255,255,255,.6)',border:'1px solid var(--border)',borderRadius:8,fontSize:11,cursor:'pointer',fontFamily:"'Jost',sans-serif",color:'var(--ink)'}}>Shuffle ↺</button>
+                  </div>
+                  {(outfit.tags||[]).length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:8}}>
+                    {outfit.tags.map(t=><span key={t} style={{fontSize:9,padding:'2px 7px',borderRadius:10,background:'rgba(0,0,0,.07)',color:'var(--muted)'}}>{t}</span>)}
+                  </div>}
+                </div>;
+              })()}
+              {gdSuggestion&&!gdSuggestion.savedOutfit&&<div style={{textAlign:'center',padding:'12px 0',fontSize:12,color:'var(--muted)'}}>No saved outfits yet — build some in the Outfits tab and tag them with occasions and weather to get suggestions here.</div>}
+            </div>;
+          })()}
           {/* Tag filter + arrange button */}
           {outfits.length>0&&(()=>{
             const usedTags=[...new Set(outfits.flatMap(o=>o.tags||[]))];
@@ -2066,10 +2141,28 @@ function App(){
     </div>
   </div>}
   {(tab==='wardrobe'||tab==='wishlist')&&scrollY>400&&<button className="back-to-top visible" onClick={()=>document.getElementById('main-scroll').scrollTo({top:0,behavior:'smooth'})}>↑</button>}
+  {showPairPicker&&selItem&&<div className="overlay" onClick={()=>setShowPairPicker(false)}>
+    <div className="sheet" onClick={e=>e.stopPropagation()}>
+      <div className="sheet-handle"/>
+      <div className="sheet-top">
+        <div className="sheet-title">Pair with…</div>
+        <button className="sheet-close" onClick={()=>setShowPairPicker(false)}>✕</button>
+      </div>
+      <div className="sheet-body">
+        <div style={{fontSize:12,color:'var(--muted)',marginBottom:12}}>Select an item to link as part of a set with <strong>{selItem.name}</strong></div>
+        <div className="grid" style={{'--grid-cols':3}}>
+          {wardrobe.filter(i=>i.id!==selItem.id&&!i.archived&&!(selItem.pairIds||[]).includes(i.id)).map(item=><div key={item.id} className="icard" onClick={()=>{addPairing(selItem.id,item.id);setShowPairPicker(false);}}>
+            <div className="iphoto">{item.photoUrl?<img src={item.photoUrl} alt={item.name}/>:<div className="no-photo"><span style={{fontSize:20,opacity:.3}}>{CAT_EMOJI[item.category]||'👗'}</span></div>}</div>
+            <div className="iinfo"><div className="iname">{item.name||'Untitled'}</div><div className="imeta">{item.category}</div></div>
+          </div>)}
+        </div>
+      </div>
+    </div>
+  </div>}
   {showAddW   && <AddWardrobeSheet  onSave={addItem}  onClose={()=>setShowAddW(false)}  stores={stores} onAddStore={addStore} wardrobe={wardrobe} extraBrands={extraBrands} onAddBrand={addBrand} wardrobeColours={wardrobeColours} extraColours={extraColours} onAddColour={addColour}/>}
   {showAddWL  && <AddWishSheet      onSave={addWish}  onClose={()=>setShowAddWL(false)} stores={stores} onAddStore={addStore}/>}
   {showAddO   && <OutfitBuilderSheet wardrobe={wardrobe} outfit={null} onSave={saveOutfit} onClose={()=>setShowAddO(false)}/>}
-  {selItem&&!editItem  && <WardrobeDetailSheet item={selItem} onClose={()=>setSelItem(null)} onEdit={()=>setEditItem(true)} onLogWear={logWear} onDelete={()=>delItem(selItem.id)} onToggleFav={()=>toggleFavourite(selItem)} onToggleArchive={()=>toggleArchive(selItem)}/>}
+  {selItem&&!editItem  && <WardrobeDetailSheet item={selItem} onClose={()=>setSelItem(null)} onEdit={()=>setEditItem(true)} onLogWear={logWear} onDelete={()=>delItem(selItem.id)} onToggleFav={()=>toggleFavourite(selItem)} onToggleArchive={()=>toggleArchive(selItem)} wardrobe={wardrobe} onAddPairing={()=>setShowPairPicker(true)} onRemovePairing={removePairing} onViewItem={item=>{setSelItem(item);}}/>}
   {showAddJ   && <AddJewelSheet onSave={addJewel} onClose={()=>setShowAddJ(false)} stores={stores} onAddStore={addStore}/>}
   {selJewel&&!editJewel && <JewelDetailSheet item={selJewel} onClose={()=>setSelJewel(null)} onEdit={()=>setEditJewel(true)} onDelete={()=>delJewel(selJewel.id)} onToggleFav={()=>toggleJewelFav(selJewel)}/>}
   {selJewel&&editJewel  && <EditJewelSheet item={selJewel} onSave={saveJewel} onCancel={()=>setEditJewel(false)} stores={stores} onAddStore={addStore}/>}
