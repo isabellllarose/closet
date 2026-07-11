@@ -91,8 +91,8 @@ const toRow  = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subc
 const fromRow= r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,brand:r.brand,store:r.store,colors:Array.isArray(r.colors)?r.colors:(r.color?[r.color]:[]),color:Array.isArray(r.colors)&&r.colors.length?r.colors[0]:(r.color||null),size:r.size,sizeLabel:r.size_label,photoUrl:r.photo_url,occasions:r.occasions||[],dateBought:r.date_bought,lastWornDate:r.last_worn_date,wearCount:r.wear_count||0,notes:r.notes,complete:r.complete,favourite:!!r.favourite,archived:!!r.archived,standby:!!r.standby,price:r.price||null,pairIds:Array.isArray(r.pair_ids)?r.pair_ids:[]});
 const toWR   = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,store:i.store||null,brand:i.brand||null,url:i.url||null,price:i.price||null,orig_price:i.origPrice||null,on_sale:!!i.onSale,rating:i.rating||3,photo_urls:i.photoUrls||[],color:i.color||null,notes:i.notes||null,added_date:i.addedDate||today2()});
 const fromWR = r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,store:r.store,brand:r.brand,url:r.url,price:r.price,origPrice:r.orig_price,onSale:r.on_sale,rating:r.rating||3,photoUrls:Array.isArray(r.photo_urls)?r.photo_urls:(r.photo_urls?[r.photo_urls]:[]),color:r.color,notes:r.notes,addedDate:r.added_date});
-const toOR   = o => ({id:o.id,tags:o.tags||[],notes:o.notes||null,item_ids:o.itemIds||[],item_positions:o.positions||null,wear_count:o.wearCount||0,last_worn_date:o.lastWornDate||null});
-const fromOR = r => ({id:r.id,tags:Array.isArray(r.tags)?r.tags:[],notes:r.notes,itemIds:r.item_ids||[],positions:r.item_positions||null,wearCount:r.wear_count||0,lastWornDate:r.last_worn_date});
+const toOR   = o => ({id:o.id,tags:o.tags||[],notes:o.notes||null,item_ids:o.itemIds||[],item_positions:o.positions||null,slot_map:o.slotMap||null,wear_count:o.wearCount||0,last_worn_date:o.lastWornDate||null});
+const fromOR = r => ({id:r.id,tags:Array.isArray(r.tags)?r.tags:[],notes:r.notes,itemIds:r.item_ids||[],positions:r.item_positions||null,slotMap:r.slot_map||null,wearCount:r.wear_count||0,lastWornDate:r.last_worn_date});
 
 const findSimilar = (wish, wardrobe) => {
   if (!wish.category) return [];
@@ -1169,22 +1169,45 @@ function OutfitBuilderSheet({wardrobe,outfit,onSave,onClose}){
   const [customTag,setCustomTag]=useState('');
   const [slots,setSlots]=useState(()=>{
     const s={Top:null,Bottom:null,Shoes:null,Bag:null,Outer:null,Jewellery:null};
-    if(outfit?.itemIds){outfit.itemIds.forEach(id=>{
-      const item=wardrobe.find(w=>w.id===id);
-      if(!item)return;
-      const cat=item.category;
-      const sub=item.subcategory||'';
-      // Assign to first matching empty slot
-      if(!s.Top&&(cat==='Tops'||cat==='Dresses'||cat==='Activewear'||cat==='Lingerie'))s.Top=item;
-      else if(!s.Outer&&cat==='Outerwear')s.Outer=item;
-      else if(!s.Bottom&&(cat==='Bottoms'||(cat==='Activewear'&&s.Top)))s.Bottom=item;
-      else if(!s.Shoes&&cat==='Shoes')s.Shoes=item;
-      else if(!s.Bag&&(cat==='Bags'||cat==='Accessories'))s.Bag=item;
-      else if(!s.Jewellery&&cat==='Jewellery')s.Jewellery=item;
-      // Fallback — put in first empty slot
-      else if(!s.Top)s.Top=item;
-      else if(!s.Bottom)s.Bottom=item;
-    });}
+    if(outfit?.itemIds){
+      // If we have a saved slot map, use it exactly — no guessing
+      if(outfit.slotMap){
+        Object.entries(outfit.slotMap).forEach(([slot,id])=>{
+          if(id&&s.hasOwnProperty(slot)){
+            const item=wardrobe.find(w=>w.id===id);
+            if(item)s[slot]=item;
+          }
+        });
+        // Any items not in slotMap go to first available slot
+        outfit.itemIds.forEach(id=>{
+          if(!Object.values(outfit.slotMap).includes(id)){
+            const item=wardrobe.find(w=>w.id===id);
+            if(!item)return;
+            const freeSlot=Object.keys(s).find(k=>!s[k]);
+            if(freeSlot)s[freeSlot]=item;
+          }
+        });
+      } else {
+        // Legacy fallback — guess from category/subcategory
+        const outerSubs=['Sports jacket','Hoodies & Sweatshirts','Tracksuit set','Shacket','Cardigan'];
+        const bottomSubs=['Sports bottoms','Leggings','Flares','Bike shorts','Shorts','Tights','Tracksuit pants'];
+        outfit.itemIds.forEach(id=>{
+          const item=wardrobe.find(w=>w.id===id);
+          if(!item)return;
+          const cat=item.category;const sub=item.subcategory||'';
+          const isOuter=cat==='Outerwear'||(cat==='Activewear'&&outerSubs.includes(sub));
+          const isBottom=cat==='Bottoms'||(cat==='Activewear'&&bottomSubs.includes(sub));
+          const isTop=(cat==='Tops'||cat==='Dresses'||cat==='Lingerie')||(cat==='Activewear'&&!outerSubs.includes(sub)&&!bottomSubs.includes(sub));
+          if(!s.Outer&&isOuter)s.Outer=item;
+          else if(!s.Top&&isTop)s.Top=item;
+          else if(!s.Bottom&&isBottom)s.Bottom=item;
+          else if(!s.Shoes&&cat==='Shoes')s.Shoes=item;
+          else if(!s.Bag&&(cat==='Bags'||cat==='Accessories'))s.Bag=item;
+          else if(!s.Jewellery&&cat==='Jewellery')s.Jewellery=item;
+          else{const freeSlot=Object.keys(s).find(k=>!s[k]);if(freeSlot)s[freeSlot]=item;}
+        });
+      }
+    }
     return s;
   });
   const [mode,setMode]=useState('structured');
@@ -1198,7 +1221,10 @@ function OutfitBuilderSheet({wardrobe,outfit,onSave,onClose}){
   function addCustomTag(){ const t=customTag.trim(); if(t&&!tags.includes(t)){setTags(p=>[...p,t]);setCustomTag('');} }
   async function save(){
     setSaving(true);
-    await onSave({id:outfit?.id||uid(),tags,notes,itemIds,positions:mode==='freeform'?positions:null,wearCount:outfit?.wearCount||0,lastWornDate:outfit?.lastWornDate||null});
+    // Build slotMap — records exactly which item is in which slot
+    const slotMap={};
+    Object.entries(slots).forEach(([slot,item])=>{if(item)slotMap[slot]=item.id;});
+    await onSave({id:outfit?.id||uid(),tags,notes,itemIds,positions:mode==='freeform'?positions:null,slotMap,wearCount:outfit?.wearCount||0,lastWornDate:outfit?.lastWornDate||null});
     setSaving(false);
   }
   const SC=[{key:'Top',label:'Top / Dress'},{key:'Outer',label:'Outer layer'},{key:'Bottom',label:'Bottom'},{key:'Shoes',label:'Shoes'},{key:'Bag',label:'Bag / Acc.'},{key:'Jewellery',label:'Jewellery'}];
