@@ -87,8 +87,8 @@ function isOverdue(iso, n=30) {
 
 // ── Data helpers ──────────────────────────────────────────────────────────────
 const uid    = () => `${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
-const toRow  = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,brand:i.brand||null,store:i.store||null,colors:Array.isArray(i.colors)?i.colors:(i.color?[i.color]:[]),size:i.size||null,size_label:i.sizeLabel||i.size||null,photo_url:i.photoUrl||null,occasions:i.occasions||[],date_bought:i.dateBought||null,last_worn_date:i.lastWornDate||null,wear_count:i.wearCount||0,notes:i.notes||null,complete:!!i.complete,favourite:!!i.favourite,archived:!!i.archived,price:i.price||null,pair_ids:i.pairIds||[]});
-const fromRow= r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,brand:r.brand,store:r.store,colors:Array.isArray(r.colors)?r.colors:(r.color?[r.color]:[]),color:Array.isArray(r.colors)&&r.colors.length?r.colors[0]:(r.color||null),size:r.size,sizeLabel:r.size_label,photoUrl:r.photo_url,occasions:r.occasions||[],dateBought:r.date_bought,lastWornDate:r.last_worn_date,wearCount:r.wear_count||0,notes:r.notes,complete:r.complete,favourite:!!r.favourite,archived:!!r.archived,price:r.price||null,pairIds:Array.isArray(r.pair_ids)?r.pair_ids:[]});
+const toRow  = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,brand:i.brand||null,store:i.store||null,colors:Array.isArray(i.colors)?i.colors:(i.color?[i.color]:[]),size:i.size||null,size_label:i.sizeLabel||i.size||null,photo_url:i.photoUrl||null,occasions:i.occasions||[],date_bought:i.dateBought||null,last_worn_date:i.lastWornDate||null,wear_count:i.wearCount||0,notes:i.notes||null,complete:!!i.complete,favourite:!!i.favourite,archived:!!i.archived,standby:!!i.standby,price:i.price||null,pair_ids:i.pairIds||[]});
+const fromRow= r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,brand:r.brand,store:r.store,colors:Array.isArray(r.colors)?r.colors:(r.color?[r.color]:[]),color:Array.isArray(r.colors)&&r.colors.length?r.colors[0]:(r.color||null),size:r.size,sizeLabel:r.size_label,photoUrl:r.photo_url,occasions:r.occasions||[],dateBought:r.date_bought,lastWornDate:r.last_worn_date,wearCount:r.wear_count||0,notes:r.notes,complete:r.complete,favourite:!!r.favourite,archived:!!r.archived,standby:!!r.standby,price:r.price||null,pairIds:Array.isArray(r.pair_ids)?r.pair_ids:[]});
 const toWR   = i => ({id:i.id,name:i.name,category:i.category,subcategory:i.subcategory||null,store:i.store||null,brand:i.brand||null,url:i.url||null,price:i.price||null,orig_price:i.origPrice||null,on_sale:!!i.onSale,rating:i.rating||3,photo_urls:i.photoUrls||[],color:i.color||null,notes:i.notes||null,added_date:i.addedDate||today2()});
 const fromWR = r => ({id:r.id,name:r.name,category:r.category,subcategory:r.subcategory,store:r.store,brand:r.brand,url:r.url,price:r.price,origPrice:r.orig_price,onSale:r.on_sale,rating:r.rating||3,photoUrls:Array.isArray(r.photo_urls)?r.photo_urls:(r.photo_urls?[r.photo_urls]:[]),color:r.color,notes:r.notes,addedDate:r.added_date});
 const toOR   = o => ({id:o.id,tags:o.tags||[],notes:o.notes||null,item_ids:o.itemIds||[],item_positions:o.positions||null,wear_count:o.wearCount||0,last_worn_date:o.lastWornDate||null});
@@ -311,6 +311,7 @@ const CSS = `
   .iphoto img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;}
   .iphoto .no-photo{display:flex;flex-direction:column;align-items:center;gap:3px;}
   .badge-warn{position:absolute;top:5px;right:5px;background:var(--accent);color:#fff;font-size:8px;padding:2px 5px;border-radius:4px;}
+  .badge-standby{position:absolute;top:5px;right:5px;background:#C4921A;color:#fff;font-size:8px;padding:2px 5px;border-radius:4px;}
   .badge-worn{position:absolute;bottom:5px;left:5px;background:rgba(0,0,0,.52);color:#fff;font-size:8px;padding:2px 5px;border-radius:4px;backdrop-filter:blur(4px);}
   .iinfo{padding:5px 7px 7px;}
   .iname{font-size:10.5px;font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -461,7 +462,7 @@ const CSS = `
   .slot-item.empty{border-style:dashed;color:var(--muted);font-size:12px;justify-content:center;}
   .slot-thumb{width:44px;height:52px;border-radius:6px;overflow:hidden;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;}
   .slot-thumb img{width:100%;height:100%;object-fit:contain;}
-  .slot-name{font-size:12px;font-weight:500;color:var(--ink);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .slot-name{font-size:12px;font-weight:500;color:var(--ink);flex:1;overflow:hidden;white-space:normal;word-break:break-word;line-height:1.3;}
   .slot-remove{background:none;border:none;font-size:14px;cursor:pointer;color:var(--muted);padding:2px;flex-shrink:0;}
   .slot-remove:hover{color:var(--red);}
   .freeform-canvas{width:100%;height:360px;position:relative;background:var(--cream);border-radius:12px;overflow:hidden;touch-action:none;}
@@ -932,7 +933,7 @@ function EditWardrobeSheet({item,onSave,onCancel,stores,onAddStore,wardrobe=[],e
     <FRow><FGrp label="Total wears" style={{flex:1,marginTop:4}}><FInp value={f.wearCount} type="number" onChange={e=>up({wearCount:parseInt(e.target.value)||0})}/></FGrp><div style={{flex:1,marginTop:4}}><DateField label="Last worn" value={f.lastWornDate} onChange={v=>up({lastWornDate:v})}/></div></FRow>
   </Sheet>;
 }
-function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete,onToggleFav,onToggleArchive,wardrobe=[],onAddPairing,onRemovePairing,onViewItem}){
+function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete,onToggleFav,onToggleArchive,onToggleStandby,wardrobe=[],onAddPairing,onRemovePairing,onViewItem,showPairPicker,setShowPairPicker}){
   const [showLog,setShowLog]=useState(false);
   return <Sheet title={item.name||'Untitled'} onClose={onClose}>
     <div style={{width:'100%',background:'#fff',borderRadius:14,marginBottom:14,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
@@ -953,23 +954,48 @@ function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete,onToggleFav
         <div style={{fontSize:10,letterSpacing:'1px',textTransform:'uppercase',color:'var(--muted)',marginBottom:8}}>Pairs with</div>
         <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
           {pairs.map(p=><div key={p.id} style={{position:'relative'}}>
-            <div onClick={()=>onViewItem&&onViewItem(p)}
-              style={{width:52,height:64,borderRadius:8,background:'#fff',border:'1.5px solid var(--border)',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+            <button onClick={e=>{e.stopPropagation();onViewItem&&onViewItem(p);}}
+              style={{width:52,height:64,borderRadius:8,background:'#fff',border:'1.5px solid var(--border)',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',padding:0}}>
               {p.photoUrl?<img src={p.photoUrl} alt={p.name} style={{width:'100%',height:'100%',objectFit:'contain'}}/>
               :<span style={{fontSize:18,opacity:.3}}>{CAT_EMOJI[p.category]||'👗'}</span>}
-            </div>
+            </button>
             <button onClick={()=>onRemovePairing&&onRemovePairing(item.id,p.id)}
               style={{position:'absolute',top:-5,right:-5,width:16,height:16,borderRadius:'50%',background:'var(--muted)',border:'none',color:'#fff',fontSize:9,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>✕</button>
           </div>)}
-          <div onClick={onAddPairing}
-            style={{width:52,height:64,borderRadius:8,border:'2px dashed var(--border)',background:'var(--cream)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',fontSize:20,color:'var(--muted)'}}>+</div>
+          <button onClick={e=>{e.stopPropagation();onAddPairing&&onAddPairing();}}
+            style={{width:52,height:64,borderRadius:8,border:'2px dashed var(--border)',background:'var(--cream)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',fontSize:20,color:'var(--muted)',flexShrink:0}}>+</button>
         </div>
       </div>;
     })()}
-    <button onClick={onToggleArchive} style={{width:'100%',marginTop:8,padding:'10px',border:'1.5px solid var(--border)',borderRadius:12,background:'none',fontSize:12,cursor:'pointer',fontFamily:"'Jost',sans-serif",color:'var(--muted)',textAlign:'center'}}>
-      {item.archived?'↩ Restore to wardrobe':'📦 Mark as sold / donated'}
-    </button>
+    <div style={{display:'flex',gap:6,marginTop:8}}>
+      <button onClick={onToggleStandby}
+        style={{flex:1,padding:'10px',border:'1.5px solid '+( item.standby?'#C4921A':'var(--border)'),borderRadius:12,background:item.standby?'#FFF8E6':'none',fontSize:11,cursor:'pointer',fontFamily:"'Jost',sans-serif",color:item.standby?'#A07010':'var(--muted)',textAlign:'center'}}>
+        {item.standby?'✓ On standby':'⏸ Put on standby'}
+      </button>
+      <button onClick={onToggleArchive}
+        style={{flex:1,padding:'10px',border:'1.5px solid var(--border)',borderRadius:12,background:'none',fontSize:11,cursor:'pointer',fontFamily:"'Jost',sans-serif",color:'var(--muted)',textAlign:'center'}}>
+        {item.archived?'↩ Restore':'📦 Donate / sell'}
+      </button>
+    </div>
     {showLog&&<LogWearModal onLog={date=>onLogWear(item,date)} onClose={()=>setShowLog(false)}/>}
+    {showPairPicker&&<div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:400,display:'flex',alignItems:'flex-end',justifyContent:'center',backdropFilter:'blur(4px)'}} onClick={()=>setShowPairPicker(false)}>
+      <div style={{background:'var(--panel)',borderRadius:'24px 24px 0 0',maxHeight:'80vh',width:'100%',maxWidth:580,display:'flex',flexDirection:'column',overflow:'hidden'}} onClick={e=>e.stopPropagation()}>
+        <div style={{width:36,height:4,background:'var(--border)',borderRadius:2,margin:'14px auto 0',flexShrink:0}}/>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 20px 10px',borderBottom:'1px solid var(--border)',flexShrink:0}}>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,fontWeight:300}}>Pair with…</div>
+          <button style={{background:'none',border:'none',fontSize:18,cursor:'pointer',color:'var(--muted)'}} onClick={()=>setShowPairPicker(false)}>✕</button>
+        </div>
+        <div style={{padding:'12px 16px',flex:1,overflowY:'auto'}}>
+          <div style={{fontSize:11,color:'var(--muted)',marginBottom:10}}>Select an item to link as part of a set</div>
+          <div className="grid" style={{'--grid-cols':3}}>
+            {wardrobe.filter(i=>i.id!==item.id&&!i.archived&&!(item.pairIds||[]).includes(i.id)).map(w=><div key={w.id} className="icard" onClick={()=>{onAddPairing&&onAddPairing(w.id);setShowPairPicker(false);}}>
+              <div className="iphoto">{w.photoUrl?<img src={w.photoUrl} alt={w.name}/>:<div className="no-photo"><span style={{fontSize:20,opacity:.3}}>{CAT_EMOJI[w.category]||'👗'}</span></div>}</div>
+              <div className="iinfo"><div className="iname">{w.name||'Untitled'}</div><div className="imeta">{w.category}</div></div>
+            </div>)}
+          </div>
+        </div>
+      </div>
+    </div>}
   </Sheet>;
 }
 
@@ -1142,8 +1168,23 @@ function OutfitBuilderSheet({wardrobe,outfit,onSave,onClose}){
   const [notes,setNotes]=useState(outfit?.notes||'');
   const [customTag,setCustomTag]=useState('');
   const [slots,setSlots]=useState(()=>{
-    const s={Top:null,Bottom:null,Shoes:null,Bag:null,Outer:null};
-    if(outfit?.itemIds){outfit.itemIds.forEach(id=>{const item=wardrobe.find(w=>w.id===id);if(!item)return;const cat=item.category;if(cat==='Tops'||cat==='Dresses'||cat==='Activewear')s.Top=s.Top||item;else if(cat==='Bottoms')s.Bottom=item;else if(cat==='Shoes')s.Shoes=item;else if(cat==='Bags'||cat==='Accessories')s.Bag=item;else if(cat==='Outerwear')s.Outer=item;});}
+    const s={Top:null,Bottom:null,Shoes:null,Bag:null,Outer:null,Jewellery:null};
+    if(outfit?.itemIds){outfit.itemIds.forEach(id=>{
+      const item=wardrobe.find(w=>w.id===id);
+      if(!item)return;
+      const cat=item.category;
+      const sub=item.subcategory||'';
+      // Assign to first matching empty slot
+      if(!s.Top&&(cat==='Tops'||cat==='Dresses'||cat==='Activewear'||cat==='Lingerie'))s.Top=item;
+      else if(!s.Outer&&cat==='Outerwear')s.Outer=item;
+      else if(!s.Bottom&&(cat==='Bottoms'||(cat==='Activewear'&&s.Top)))s.Bottom=item;
+      else if(!s.Shoes&&cat==='Shoes')s.Shoes=item;
+      else if(!s.Bag&&(cat==='Bags'||cat==='Accessories'))s.Bag=item;
+      else if(!s.Jewellery&&cat==='Jewellery')s.Jewellery=item;
+      // Fallback — put in first empty slot
+      else if(!s.Top)s.Top=item;
+      else if(!s.Bottom)s.Bottom=item;
+    });}
     return s;
   });
   const [mode,setMode]=useState('structured');
@@ -1151,7 +1192,8 @@ function OutfitBuilderSheet({wardrobe,outfit,onSave,onClose}){
   const [picker,setPicker]=useState(null);
   const [saving,setSaving]=useState(false);
   const slotItems=Object.values(slots).filter(Boolean);
-  const itemIds=slotItems.map(i=>i.id);
+  // Deduplicate in case same item somehow in two slots
+  const itemIds=[...new Set(slotItems.map(i=>i.id))];
   function toggleTag(t){ setTags(p=>p.includes(t)?p.filter(x=>x!==t):[...p,t]); }
   function addCustomTag(){ const t=customTag.trim(); if(t&&!tags.includes(t)){setTags(p=>[...p,t]);setCustomTag('');} }
   async function save(){
@@ -1298,7 +1340,8 @@ function WardrobeCard({item,onClick,onToggleFav,showLabels=true}){
   return <div className={`icard${needsInfo?' incomplete':''}`} onClick={onClick}>
     <div className="iphoto">
       {item.photoUrl?<img src={item.photoUrl} alt={item.name}/>:<div className="no-photo"><span style={{fontSize:22,opacity:.3}}>{CAT_EMOJI[item.category]||'👗'}</span><span style={{fontSize:9,color:'var(--muted)',marginTop:2}}>{item.subcategory||item.category}</span></div>}
-      {needsInfo&&<span className="badge-warn">needs info</span>}
+      {needsInfo&&!item.standby&&<span className="badge-warn">needs info</span>}
+      {item.standby&&<span className="badge-standby">standby</span>}
       {item.lastWornDate&&<span className="badge-worn">{daysAgoLabel(item.lastWornDate)}</span>}
       {onToggleFav&&<span onClick={e=>{e.stopPropagation();onToggleFav(item);}}
         style={{position:'absolute',top:5,left:5,fontSize:15,lineHeight:1,cursor:'pointer',color:item.favourite?'#C9A050':'rgba(255,255,255,.8)',filter:'drop-shadow(0 1px 2px rgba(0,0,0,.4))'}}>
@@ -1410,6 +1453,7 @@ function App(){
   async function logWear(item,date){const u={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};try{await sb.upd('wardrobe',item.id,{last_worn_date:date,wear_count:u.wearCount});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
   async function toggleFavourite(item){const u={...item,favourite:!item.favourite};try{await sb.upd('wardrobe',item.id,{favourite:u.favourite});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
   async function toggleArchive(item){const u={...item,archived:!item.archived};try{await sb.upd('wardrobe',item.id,{archived:u.archived});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
+  async function toggleStandby(item){const u={...item,standby:!item.standby};try{await sb.upd('wardrobe',item.id,{standby:u.standby});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
 
   // Pairings — bidirectional
   async function addPairing(itemId, pairedId) {
@@ -1663,7 +1707,7 @@ function App(){
         <div className="topbar-title">{tabTitle[tab]}</div>
         {(tab==='wardrobe'||tab==='wishlist')&&<div className="searchbox"><span style={{fontSize:13,color:'var(--muted)'}}>⌕</span><input placeholder={tab==='wardrobe'?'Search items, brands, colours…':'Search wishlist…'} value={search} onChange={e=>setSearch(e.target.value)}/>{search&&<span onClick={()=>setSearch('')} style={{cursor:'pointer',color:'var(--muted)',fontSize:12}}>✕</span>}</div>}
         {tab==='wardrobe'&&<button className="iconbtn" onClick={()=>setShowAddW(true)}>+</button>}
-        {tab==='outfits'&&<button className="iconbtn" onClick={()=>setShowAddO(true)}>+</button>}
+        {tab==='outfits'&&<button className="iconbtn" onClick={()=>setShowAddO(true)} style={{marginLeft:'auto'}}>+</button>}
         {tab==='wishlist'&&<button className="iconbtn" onClick={()=>setShowAddWL(true)}>+</button>}
         {tab==='jewellery'&&<button className="iconbtn" onClick={()=>setShowAddJ(true)}>+</button>}
       </div>
@@ -1722,12 +1766,7 @@ function App(){
             {CATEGORY_MAP[catFilter].map(s=><button key={s} className={`chip${subcatFilter===s?' active':''}`} onClick={()=>setSubcat(s)}>{s}</button>)}
           </div>}
           {(()=>{const usedGroups=[...new Set(wardrobe.flatMap(i=>(i.colors||[]).map(getColourGroup)).filter(Boolean))];return usedGroups.length>0?<div className="filterrow" style={{paddingTop:2}}><button className={`chip${colourFilter==='All'?' active':''}`} onClick={()=>setColourFilter('All')}>All colours</button>{usedGroups.map(g=><button key={g} className={`chip${colourFilter===g?' active':''}`} onClick={()=>setColourFilter(g)}>{g}</button>)}</div>:null;})()}
-          {/* Archive link */}
-          {archivedWardrobe.length>0&&<div onClick={()=>setShowArchive(true)}
-            style={{margin:'6px 16px 0',background:'var(--cream)',borderRadius:10,padding:'9px 13px',border:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer'}}>
-            <div style={{fontSize:12,color:'var(--muted)'}}>📦 {archivedWardrobe.length} archived item{archivedWardrobe.length!==1?'s':''}</div>
-            <span style={{fontSize:11,color:'var(--muted)'}}>View →</span>
-          </div>}
+
           {incomplete.length>0&&<>
             <div className="banner"><span>📋</span><div><div style={{fontSize:12,fontWeight:500,color:'var(--ink)'}}>{incomplete.length} item{incomplete.length>1?'s':''} need details</div><div style={{fontSize:10,color:'var(--muted)',marginTop:1}}>Tap any below to jump straight to it</div></div></div>
             <div style={{display:'flex',gap:8,overflowX:'auto',padding:'0 16px 8px'}}>
@@ -1952,6 +1991,30 @@ function App(){
           })()}
 
           {(()=>{
+            const standbyItems=activeWardrobe.filter(i=>i.standby);
+            if(!standbyItems.length)return null;
+            return <div style={{margin:'10px 16px 0',background:'#FFF8E6',borderRadius:12,padding:'12px 14px',border:'1px solid #E8D080'}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                <div style={{fontSize:12,fontWeight:500,color:'#A07010'}}>{'⏸ On standby · '+standbyItems.length+' item'+(standbyItems.length!==1?'s':'')}</div>
+                <div style={{fontSize:10,color:'#A07010'}}>Pending decision</div>
+              </div>
+              <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:4}}>
+                {standbyItems.map(i=><div key={i.id} onClick={()=>{setSelItem(i);setEditItem(false);setTab('wardrobe');}} style={{flexShrink:0,cursor:'pointer'}}>
+                  <div style={{width:52,height:64,borderRadius:8,background:'#fff',border:'1.5px solid #E8D080',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    {i.photoUrl?<img src={i.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'contain'}}/>:<span style={{fontSize:20,opacity:.3}}>{CAT_EMOJI[i.category]||'👗'}</span>}
+                  </div>
+                  <div style={{fontSize:9,color:'#A07010',marginTop:2,textAlign:'center',width:52,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{i.name}</div>
+                </div>)}
+              </div>
+              <div style={{fontSize:10,color:'#A07010',marginTop:6}}>Tap an item to decide — keep it, donate it, or restore it</div>
+            </div>;
+          })()}
+                    {archivedWardrobe.length>0&&<div onClick={()=>setShowArchive(true)}
+            style={{margin:'10px 16px 0',background:'var(--cream)',borderRadius:10,padding:'9px 13px',border:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer'}}>
+            <div style={{fontSize:12,color:'var(--muted)'}}>📦 {archivedWardrobe.length} archived item{archivedWardrobe.length!==1?'s':''} — sold or donated</div>
+            <span style={{fontSize:11,color:'var(--muted)'}}>View →</span>
+          </div>}
+          {(()=>{
             // Spring clean — items owned 6+ months and never worn, or 1yr+ since worn
             const longUnworn = activeWardrobe.filter(i=>{
               if(isIncomplete(i))return false;
@@ -2141,28 +2204,10 @@ function App(){
     </div>
   </div>}
   {(tab==='wardrobe'||tab==='wishlist')&&scrollY>400&&<button className="back-to-top visible" onClick={()=>document.getElementById('main-scroll').scrollTo({top:0,behavior:'smooth'})}>↑</button>}
-  {showPairPicker&&selItem&&<div className="overlay" onClick={()=>setShowPairPicker(false)}>
-    <div className="sheet" onClick={e=>e.stopPropagation()}>
-      <div className="sheet-handle"/>
-      <div className="sheet-top">
-        <div className="sheet-title">Pair with…</div>
-        <button className="sheet-close" onClick={()=>setShowPairPicker(false)}>✕</button>
-      </div>
-      <div className="sheet-body">
-        <div style={{fontSize:12,color:'var(--muted)',marginBottom:12}}>Select an item to link as part of a set with <strong>{selItem.name}</strong></div>
-        <div className="grid" style={{'--grid-cols':3}}>
-          {wardrobe.filter(i=>i.id!==selItem.id&&!i.archived&&!(selItem.pairIds||[]).includes(i.id)).map(item=><div key={item.id} className="icard" onClick={()=>{addPairing(selItem.id,item.id);setShowPairPicker(false);}}>
-            <div className="iphoto">{item.photoUrl?<img src={item.photoUrl} alt={item.name}/>:<div className="no-photo"><span style={{fontSize:20,opacity:.3}}>{CAT_EMOJI[item.category]||'👗'}</span></div>}</div>
-            <div className="iinfo"><div className="iname">{item.name||'Untitled'}</div><div className="imeta">{item.category}</div></div>
-          </div>)}
-        </div>
-      </div>
-    </div>
-  </div>}
   {showAddW   && <AddWardrobeSheet  onSave={addItem}  onClose={()=>setShowAddW(false)}  stores={stores} onAddStore={addStore} wardrobe={wardrobe} extraBrands={extraBrands} onAddBrand={addBrand} wardrobeColours={wardrobeColours} extraColours={extraColours} onAddColour={addColour}/>}
   {showAddWL  && <AddWishSheet      onSave={addWish}  onClose={()=>setShowAddWL(false)} stores={stores} onAddStore={addStore}/>}
   {showAddO   && <OutfitBuilderSheet wardrobe={wardrobe} outfit={null} onSave={saveOutfit} onClose={()=>setShowAddO(false)}/>}
-  {selItem&&!editItem  && <WardrobeDetailSheet item={selItem} onClose={()=>setSelItem(null)} onEdit={()=>setEditItem(true)} onLogWear={logWear} onDelete={()=>delItem(selItem.id)} onToggleFav={()=>toggleFavourite(selItem)} onToggleArchive={()=>toggleArchive(selItem)} wardrobe={wardrobe} onAddPairing={()=>setShowPairPicker(true)} onRemovePairing={removePairing} onViewItem={item=>{setSelItem(item);}}/>}
+  {selItem&&!editItem  && <WardrobeDetailSheet item={selItem} onClose={()=>setSelItem(null)} onEdit={()=>setEditItem(true)} onLogWear={logWear} onDelete={()=>delItem(selItem.id)} onToggleFav={()=>toggleFavourite(selItem)} onToggleArchive={()=>toggleArchive(selItem)} onToggleStandby={()=>toggleStandby(selItem)} wardrobe={wardrobe} onAddPairing={pairedId=>addPairing(selItem.id,pairedId)} onRemovePairing={removePairing} onViewItem={item=>{setSelItem(item);}} showPairPicker={showPairPicker} setShowPairPicker={setShowPairPicker}/>}
   {showAddJ   && <AddJewelSheet onSave={addJewel} onClose={()=>setShowAddJ(false)} stores={stores} onAddStore={addStore}/>}
   {selJewel&&!editJewel && <JewelDetailSheet item={selJewel} onClose={()=>setSelJewel(null)} onEdit={()=>setEditJewel(true)} onDelete={()=>delJewel(selJewel.id)} onToggleFav={()=>toggleJewelFav(selJewel)}/>}
   {selJewel&&editJewel  && <EditJewelSheet item={selJewel} onSave={saveJewel} onCancel={()=>setEditJewel(false)} stores={stores} onAddStore={addStore}/>}
