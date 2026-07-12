@@ -985,15 +985,24 @@ function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete,onToggleFav
           <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,fontWeight:300}}>Pair with…</div>
           <button style={{background:'none',border:'none',fontSize:18,cursor:'pointer',color:'var(--muted)'}} onClick={()=>setShowPairPicker(false)}>✕</button>
         </div>
-        <div style={{padding:'12px 16px',flex:1,overflowY:'auto'}}>
-          <div style={{fontSize:11,color:'var(--muted)',marginBottom:10}}>Select an item to link as part of a set</div>
-          <div className="grid" style={{'--grid-cols':3}}>
-            {wardrobe.filter(i=>i.id!==item.id&&!i.archived&&!(item.pairIds||[]).includes(i.id)).map(w=><button key={w.id} className="icard" onClick={e=>{e.stopPropagation();onAddPairing&&onAddPairing(w.id);setShowPairPicker(false);}} style={{textAlign:'left',padding:0,background:'#fff',border:'1.5px solid var(--border)',cursor:'pointer',borderRadius:12,overflow:'hidden',WebkitTapHighlightColor:'transparent'}}>
-              <div className="iphoto">{w.photoUrl?<img src={w.photoUrl} alt={w.name}/>:<div className="no-photo"><span style={{fontSize:20,opacity:.3}}>{CAT_EMOJI[w.category]||'👗'}</span></div>}</div>
-              <div className="iinfo"><div className="iname">{w.name||'Untitled'}</div><div className="imeta">{w.category}</div></div>
-            </button>)}
-          </div>
-        </div>
+        {(()=>{
+          const [pairCat,setPairCat]=React.useState('All');
+          const filtered=wardrobe.filter(i=>i.id!==item.id&&!i.archived&&!(item.pairIds||[]).includes(i.id)&&(pairCat==='All'||i.category===pairCat));
+          return <>
+            <div style={{display:'flex',gap:5,overflowX:'auto',padding:'8px 16px 4px',flexShrink:0}}>
+              {['All',...Object.keys(CATEGORY_MAP)].map(c=><button key={c} className={`chip${pairCat===c?' active':''}`} onClick={e=>{e.stopPropagation();setPairCat(c);}} style={{fontSize:11,padding:'4px 10px',flexShrink:0}}>{c}</button>)}
+            </div>
+            <div style={{padding:'8px 16px',flex:1,overflowY:'auto'}}>
+              <div className="grid" style={{'--grid-cols':3}}>
+                {filtered.map(w=><button key={w.id} className="icard" onClick={e=>{e.stopPropagation();onAddPairing&&onAddPairing(w.id);setShowPairPicker(false);}} style={{textAlign:'left',padding:0,background:'#fff',border:'1.5px solid var(--border)',cursor:'pointer',borderRadius:12,overflow:'hidden',WebkitTapHighlightColor:'transparent'}}>
+                  <div className="iphoto">{w.photoUrl?<img src={w.photoUrl} alt={w.name}/>:<div className="no-photo"><span style={{fontSize:20,opacity:.3}}>{CAT_EMOJI[w.category]||'👗'}</span></div>}</div>
+                  <div className="iinfo"><div className="iname">{w.name||'Untitled'}</div><div className="imeta">{w.subcategory||w.category}</div></div>
+                </button>)}
+                {filtered.length===0&&<div style={{gridColumn:'1/-1',textAlign:'center',padding:'24px 0',fontSize:12,color:'var(--muted)'}}>No items in this category</div>}
+              </div>
+            </div>
+          </>;
+        })()}
       </div>
     </div>}
   </Sheet>;
@@ -1720,7 +1729,7 @@ function App(){
   // Item needs attention if missing photo, name, category, size, store, or colour
   const isIncomplete = i => !i.photoUrl||!i.name||!i.category||!i.size||!i.store||(Array.isArray(i.colors)?i.colors.length===0:!i.color);
   const incomplete=activeWardrobe.filter(isIncomplete);
-  const neverWorn = activeWardrobe.filter(i=>!isIncomplete(i)&&!i.lastWornDate);
+  const neverWorn = activeWardrobe.filter(i=>!isIncomplete(i)&&!i.lastWornDate&&(!i.wearCount||i.wearCount===0));
   const overdueWorn = activeWardrobe.filter(i=>!isIncomplete(i)&&i.lastWornDate&&isOverdue(i.lastWornDate))
     .sort((a,b)=>new Date(a.lastWornDate)-new Date(b.lastWornDate));
   const unworn = [...neverWorn, ...overdueWorn];
@@ -2211,7 +2220,7 @@ function App(){
                   {item.photoUrl?<img src={item.photoUrl} alt={item.name}/>
                   :<div className="no-photo"><span style={{fontSize:28,opacity:.5}}>{JEWELLERY_EMOJI[item.subcategory]||'💍'}</span></div>}
                   {item.favourite&&<span style={{position:'absolute',top:5,left:5,fontSize:14,color:'#C9A050',filter:'drop-shadow(0 1px 2px rgba(0,0,0,.3))'}}>★</span>}
-                  {item.material&&<span style={{position:'absolute',bottom:5,right:5,background:'rgba(0,0,0,.45)',color:'#fff',fontSize:8,padding:'2px 5px',borderRadius:4,backdropFilter:'blur(4px)'}}>{item.material}</span>}
+
                 </div>
                 <div className="iinfo"><div className="iname">{item.name||'Untitled'}</div><div className="imeta">{item.subcategory||'—'}</div></div>
               </div>)}
