@@ -6,11 +6,63 @@ const SB_URL = 'https://bxlpdmnxoslukvrpdfke.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4bHBkbW54b3NsdWt2cnBkZmtlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwMTk0NTksImV4cCI6MjA5ODU5NTQ1OX0.HARfq5wkICO8AuFNubc6I7TQrnWBMFv_yUanKaMjGMQ';
 const H = {'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':'application/json','Prefer':'return=representation'};
 
+// Auth token store — updated after login
+let authToken = null;
+function getHeaders() {
+  return {
+    'apikey': SB_KEY,
+    'Authorization': `Bearer ${authToken || SB_KEY}`,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  };
+}
+
 const sb = {
-  async get(t,q='')  { const r=await fetch(`${SB_URL}/rest/v1/${t}?${q}&order=created_at.asc`,{headers:H}); if(!r.ok)throw new Error(await r.text()); return r.json(); },
-  async ins(t,d)     { const r=await fetch(`${SB_URL}/rest/v1/${t}`,{method:'POST',headers:H,body:JSON.stringify(d)}); if(!r.ok)throw new Error(await r.text()); return r.json(); },
-  async upd(t,id,d)  { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'PATCH',headers:H,body:JSON.stringify(d)}); if(!r.ok)throw new Error(await r.text()); return r.json(); },
-  async del(t,id)    { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'DELETE',headers:H}); if(!r.ok)throw new Error(await r.text()); },
+  async get(t,q='')  { const r=await fetch(`${SB_URL}/rest/v1/${t}?${q}&order=created_at.asc`,{headers:getHeaders()}); if(!r.ok)throw new Error(await r.text()); return r.json(); },
+  async ins(t,d)     { const r=await fetch(`${SB_URL}/rest/v1/${t}`,{method:'POST',headers:getHeaders(),body:JSON.stringify(d)}); if(!r.ok)throw new Error(await r.text()); return r.json(); },
+  async upd(t,id,d)  { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'PATCH',headers:getHeaders(),body:JSON.stringify(d)}); if(!r.ok)throw new Error(await r.text()); return r.json(); },
+  async del(t,id)    { const r=await fetch(`${SB_URL}/rest/v1/${t}?id=eq.${id}`,{method:'DELETE',headers:getHeaders()}); if(!r.ok)throw new Error(await r.text()); },
+  async signIn(email, password) {
+    const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {'apikey': SB_KEY, 'Content-Type': 'application/json'},
+      body: JSON.stringify({email, password})
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error_description || d.msg || 'Login failed');
+    authToken = d.access_token;
+    // Store session in localStorage for remember me
+    try {
+      localStorage.setItem('closet_session', JSON.stringify({
+        access_token: d.access_token,
+        refresh_token: d.refresh_token,
+        expires_at: Date.now() + (d.expires_in * 1000)
+      }));
+    } catch(e) {}
+    return d;
+  },
+  async refreshSession(refreshToken) {
+    const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: {'apikey': SB_KEY, 'Content-Type': 'application/json'},
+      body: JSON.stringify({refresh_token: refreshToken})
+    });
+    const d = await r.json();
+    if (!r.ok) return null;
+    authToken = d.access_token;
+    try {
+      localStorage.setItem('closet_session', JSON.stringify({
+        access_token: d.access_token,
+        refresh_token: d.refresh_token,
+        expires_at: Date.now() + (d.expires_in * 1000)
+      }));
+    } catch(e) {}
+    return d;
+  },
+  signOut() {
+    authToken = null;
+    try { localStorage.removeItem('closet_session'); } catch(e) {}
+  },
   // Upload with retry — converts to JPEG first for reliable iPhone camera roll uploads
   async upload(file) {
     const MAX = 4 * 1024 * 1024; // 4MB
@@ -18,7 +70,7 @@ const sb = {
     let blob = await resizeImage(file, 1200);
     const ext = 'jpg';
     const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const uploadHeaders = {'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':'image/jpeg'};
+    const uploadHeaders = {'apikey':SB_KEY,'Authorization':`Bearer ${authToken||SB_KEY}`,'Content-Type':'image/jpeg'};
     try {
       const r = await fetch(`${SB_URL}/storage/v1/object/closet-images/${path}`, {method:'POST',headers:uploadHeaders,body:blob});
       if (!r.ok) { const err = await r.text(); console.error('Upload failed:', err); return null; }
@@ -1406,7 +1458,86 @@ function WishCard({item,similar,onRate,onClick}){
 }
 
 // ── Main App ──────────────────────────────────────────────────────────────────
+// ── Login Screen ─────────────────────────────────────────────────────────────
+function LoginScreen({onLogin}) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleLogin(e) {
+    if (e) e.preventDefault();
+    if (!email || !password) return;
+    setLoading(true);
+    setError('');
+    try {
+      await sb.signIn(email, password);
+      onLogin();
+    } catch(err) {
+      setError(err.message || 'Invalid email or password');
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'var(--cream)',padding:'24px'}}>
+      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:40,fontWeight:300,letterSpacing:6,marginBottom:8,color:'var(--ink)'}}>closet</div>
+      <div style={{fontSize:12,color:'var(--muted)',marginBottom:40,letterSpacing:1}}>your wardrobe, organised</div>
+      <div style={{width:'100%',maxWidth:340,background:'#fff',borderRadius:20,padding:'28px 24px',boxShadow:'0 4px 24px rgba(0,0,0,.08)',border:'1px solid var(--border)'}}>
+        <div style={{marginBottom:20}}>
+          <label className="f-lbl">Email</label>
+          <input type="email" value={email} onChange={e=>setEmail(e.target.value)}
+            onKeyDown={e=>e.key==='Enter'&&handleLogin()}
+            placeholder="your@email.com"
+            className="f-inp" style={{fontSize:16}}
+            autoComplete="email"/>
+        </div>
+        <div style={{marginBottom:8}}>
+          <label className="f-lbl">Password</label>
+          <input type="password" value={password} onChange={e=>setPassword(e.target.value)}
+            onKeyDown={e=>e.key==='Enter'&&handleLogin()}
+            placeholder="••••••••"
+            className="f-inp" style={{fontSize:16}}
+            autoComplete="current-password"/>
+        </div>
+        {error&&<div style={{fontSize:12,color:'var(--red)',marginBottom:12,padding:'8px 10px',background:'#FEF0F0',borderRadius:8}}>{error}</div>}
+        <button onClick={handleLogin} disabled={loading||!email||!password}
+          style={{width:'100%',padding:'13px',background:'var(--ink)',color:'#fff',border:'none',borderRadius:12,fontSize:14,cursor:loading||!email||!password?'default':'pointer',fontFamily:"'Jost',sans-serif",opacity:loading||!email||!password?.5:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginTop:8}}>
+          {loading?<><div className="spinner"/>Signing in…</>:'Sign in'}
+        </button>
+      </div>
+      <div style={{fontSize:10,color:'var(--muted)',marginTop:32,textAlign:'center',lineHeight:1.6}}>Your personal wardrobe is private and secure.<br/>Sign in with your Supabase credentials.</div>
+    </div>
+  );
+}
+
 function App(){
+  const [authed, setAuthed] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
+
+  // Check for existing session on mount
+  useEffect(()=>{
+    async function checkSession(){
+      try {
+        const stored = localStorage.getItem('closet_session');
+        if (stored) {
+          const session = JSON.parse(stored);
+          // If token not expired, use it
+          if (session.expires_at > Date.now() + 60000) {
+            authToken = session.access_token;
+            setAuthed(true);
+          } else if (session.refresh_token) {
+            // Try to refresh
+            const refreshed = await sb.refreshSession(session.refresh_token);
+            if (refreshed) setAuthed(true);
+          }
+        }
+      } catch(e) { console.error('session check:', e); }
+      setAuthChecking(false);
+    }
+    checkSession();
+  }, []);
+
   const [tab,setTab]        = useState('wardrobe');
   const [wardrobe,setW]     = useState([]);
   const [wishlist,setWL]    = useState([]);
@@ -1739,6 +1870,8 @@ function App(){
 
   const tabTitle={wardrobe:'Wardrobe',outfits:'Outfits',wishlist:'Wishlist',stats:'Stats',sizes:'Size guides',jewellery:'Jewellery'};
 
+  if(authChecking)return<><style>{CSS}</style><div style={{height:'100dvh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--cream)'}}><div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:32,fontWeight:300,letterSpacing:4,color:'var(--ink)'}}>closet</div></div></>;
+  if(!authed)return<><style>{CSS}</style><LoginScreen onLogin={()=>setAuthed(true)}/></>;
   if(loading)return<><style>{CSS}</style><div style={{height:'100dvh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--cream)',flexDirection:'column',gap:12}}><div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:32,fontWeight:300,letterSpacing:4}}>closet</div><div style={{fontSize:12,color:'var(--muted)'}}>Loading your wardrobe…</div></div></>;
 
   return<><style>{CSS}</style>
@@ -2002,6 +2135,12 @@ function App(){
         </>}
 
         {tab==='stats'&&<>
+          <div style={{display:'flex',justifyContent:'flex-end',padding:'8px 16px 0'}}>
+            <button onClick={()=>{sb.signOut();setAuthed(false);}}
+              style={{fontSize:11,padding:'5px 12px',borderRadius:8,border:'1.5px solid var(--border)',background:'none',color:'var(--muted)',cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>
+              Sign out
+            </button>
+          </div>
           {(()=>{
             const priced = activeWardrobe.filter(i=>i.price&&parseFloat(i.price)>0);
             const totalValue = priced.reduce((s,i)=>s+parseFloat(i.price),0);
