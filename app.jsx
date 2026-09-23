@@ -935,10 +935,69 @@ function ColourPicker({values=[], onChange, wardrobeColours=[], extraColours=[],
 
 // ── Shared UI ─────────────────────────────────────────────────────────────────
 function Sheet({title,onClose,children,actions}){
-  const sheetRef=useRef();const startY=useRef(null);
-  function onTouchStart(e){startY.current=e.touches[0].clientY;}
-  function onTouchEnd(e){if(startY.current===null)return;const dy=e.changedTouches[0].clientY-startY.current;if(dy>80)onClose();startY.current=null;}
-  return <div className="overlay" onClick={onClose}><div className="sheet" ref={sheetRef} onClick={e=>e.stopPropagation()} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}><div className="sheet-handle"/><div className="sheet-top"><div className="sheet-title">{title}</div><button className="sheet-close" onClick={onClose}>✕</button></div><div className="sheet-body">{children}</div>{actions&&<div className="sheet-actions">{actions}</div>}</div></div>;
+  const sheetRef=useRef();
+  const bodyRef=useRef();
+  const startY=useRef(null);
+  const startScrollTop=useRef(0);
+  const dragging=useRef(false);
+  const [dragY,setDragY]=useState(0);
+
+  function onTouchStart(e){
+    // Only initiate swipe-to-close from the handle or when body is scrolled to top
+    const scrollTop=bodyRef.current?bodyRef.current.scrollTop:0;
+    startScrollTop.current=scrollTop;
+    startY.current=e.touches[0].clientY;
+    dragging.current=false;
+  }
+
+  function onTouchMove(e){
+    if(startY.current===null)return;
+    const dy=e.touches[0].clientY-startY.current;
+    const scrollTop=bodyRef.current?bodyRef.current.scrollTop:0;
+    // Only allow swipe-to-close drag when at top of scroll AND dragging down
+    if(dy>0&&scrollTop<=0&&startScrollTop.current<=0){
+      dragging.current=true;
+      setDragY(dy);
+      e.preventDefault(); // prevent scroll while dragging sheet
+    } else {
+      dragging.current=false;
+      setDragY(0);
+    }
+  }
+
+  function onTouchEnd(e){
+    if(!dragging.current){startY.current=null;setDragY(0);return;}
+    const dy=e.changedTouches[0].clientY-startY.current;
+    const threshold=window.innerHeight*0.28; // must swipe 28% of screen height
+    if(dy>threshold){
+      onClose();
+    } else {
+      // Snap back with animation
+      setDragY(0);
+    }
+    startY.current=null;
+    dragging.current=false;
+  }
+
+  const transform=dragY>0?`translateY(${dragY}px)`:'none';
+  const transition=dragging.current?'none':'transform 0.25s cubic-bezier(0.32,0.72,0,1)';
+
+  return <div className="overlay" onClick={onClose}>
+    <div className="sheet" ref={sheetRef}
+      onClick={e=>e.stopPropagation()}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      style={{transform,transition,willChange:'transform'}}>
+      <div className="sheet-handle" style={{cursor:'grab'}}/>
+      <div className="sheet-top">
+        <div className="sheet-title">{title}</div>
+        <button className="sheet-close" onClick={onClose}>✕</button>
+      </div>
+      <div className="sheet-body" ref={bodyRef}>{children}</div>
+      {actions&&<div className="sheet-actions">{actions}</div>}
+    </div>
+  </div>;
 }
 function BtnO({onClick,children}){return <button onClick={onClick} style={{flex:1,padding:12,border:'1.5px solid #E0D9CF',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif",color:'#1A1714'}}>{children}</button>;}
 function BtnF({onClick,disabled,loading,children,color='#1A1714'}){return <button onClick={onClick} disabled={disabled||loading} style={{flex:1,padding:12,border:'none',borderRadius:12,background:color,color:'#fff',fontSize:13,cursor:disabled||loading?'default':'pointer',fontFamily:"'Jost',sans-serif",opacity:disabled||loading?.5:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>{loading&&<div className="spinner"/>}{children}</button>;}
@@ -1653,7 +1712,17 @@ function App(){
   }
 
   // Jewellery CRUD
-  async function addJewel(i){try{await sb.ins('jewellery',toJR(i));setJewellery(p=>[...p,i]);}catch(e){console.error(e);}setShowAddJ(false);}
+  async function addJewel(i){
+    try{
+      const res=await sb.ins('jewellery',toJR(i));
+      const saved=Array.isArray(res)&&res[0]?fromJR(res[0]):i;
+      setJewellery(p=>[...p,saved]);
+      setShowAddJ(false);
+    }catch(e){
+      console.error('jewellery save:',e);
+      alert('Could not save — '+e.message);
+    }
+  }
   async function saveJewel(i){try{await sb.upd('jewellery',i.id,toJR(i));setJewellery(p=>p.map(x=>x.id===i.id?i:x));setSelJewel(i);}catch(e){console.error(e);}setEditJewel(false);}
   async function delJewel(id){try{await sb.del('jewellery',id);setJewellery(p=>p.filter(x=>x.id!==id));}catch(e){console.error(e);}setSelJewel(null);}
   async function toggleJewelFav(item){const u={...item,favourite:!item.favourite};try{await sb.upd('jewellery',item.id,{favourite:u.favourite});setJewellery(p=>p.map(x=>x.id===item.id?u:x));setSelJewel(u);}catch(e){console.error(e);}}
