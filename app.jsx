@@ -937,16 +937,28 @@ function ColourPicker({values=[], onChange, wardrobeColours=[], extraColours=[],
 function Sheet({title,onClose,children,actions}){
   const sheetRef=useRef();
   const bodyRef=useRef();
+  const handleRef=useRef();
   const startY=useRef(null);
-  const startScrollTop=useRef(0);
+  const fromHandle=useRef(false);
   const dragging=useRef(false);
   const [dragY,setDragY]=useState(0);
 
-  function onTouchStart(e){
-    // Only initiate swipe-to-close from the handle or when body is scrolled to top
-    const scrollTop=bodyRef.current?bodyRef.current.scrollTop:0;
-    startScrollTop.current=scrollTop;
+  function onHandleTouchStart(e){
+    // Swipe from handle — always allow close gesture
+    fromHandle.current=true;
     startY.current=e.touches[0].clientY;
+    dragging.current=false;
+  }
+
+  function onBodyTouchStart(e){
+    // Swipe from body — only allow if scrolled to very top
+    fromHandle.current=false;
+    const scrollTop=bodyRef.current?bodyRef.current.scrollTop:0;
+    if(scrollTop<=0){
+      startY.current=e.touches[0].clientY;
+    } else {
+      startY.current=null; // ignore — user is scrolling content
+    }
     dragging.current=false;
   }
 
@@ -954,29 +966,29 @@ function Sheet({title,onClose,children,actions}){
     if(startY.current===null)return;
     const dy=e.touches[0].clientY-startY.current;
     const scrollTop=bodyRef.current?bodyRef.current.scrollTop:0;
-    // Only allow swipe-to-close drag when at top of scroll AND dragging down
-    if(dy>0&&scrollTop<=0&&startScrollTop.current<=0){
+    // Only drag sheet if moving down, and either from handle or still at scroll top
+    if(dy>10&&(fromHandle.current||scrollTop<=0)){
       dragging.current=true;
-      setDragY(dy);
-      e.preventDefault(); // prevent scroll while dragging sheet
-    } else {
+      setDragY(Math.max(0,dy));
+      if(fromHandle.current)e.preventDefault();
+    } else if(dy<0){
+      // Swiping up — cancel any drag
       dragging.current=false;
       setDragY(0);
+      startY.current=null;
     }
   }
 
   function onTouchEnd(e){
-    if(!dragging.current){startY.current=null;setDragY(0);return;}
-    const dy=e.changedTouches[0].clientY-startY.current;
-    const threshold=window.innerHeight*0.28; // must swipe 28% of screen height
-    if(dy>threshold){
-      onClose();
-    } else {
-      // Snap back with animation
-      setDragY(0);
+    if(!dragging.current||startY.current===null){
+      setDragY(0);startY.current=null;dragging.current=false;fromHandle.current=false;return;
     }
-    startY.current=null;
-    dragging.current=false;
+    const dy=e.changedTouches[0].clientY-startY.current;
+    // Require large deliberate swipe — 35% of screen from body, 25% from handle
+    const threshold=window.innerHeight*(fromHandle.current?0.25:0.35);
+    if(dy>threshold){onClose();}
+    else{setDragY(0);} // snap back
+    startY.current=null;dragging.current=false;fromHandle.current=false;
   }
 
   const transform=dragY>0?`translateY(${dragY}px)`:'none';
@@ -985,16 +997,16 @@ function Sheet({title,onClose,children,actions}){
   return <div className="overlay" onClick={onClose}>
     <div className="sheet" ref={sheetRef}
       onClick={e=>e.stopPropagation()}
-      onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       style={{transform,transition,willChange:'transform'}}>
-      <div className="sheet-handle" style={{cursor:'grab'}}/>
+      <div className="sheet-handle" ref={handleRef} style={{cursor:'grab',padding:'10px 0'}}
+        onTouchStart={onHandleTouchStart}/>
       <div className="sheet-top">
         <div className="sheet-title">{title}</div>
         <button className="sheet-close" onClick={onClose}>✕</button>
       </div>
-      <div className="sheet-body" ref={bodyRef}>{children}</div>
+      <div className="sheet-body" ref={bodyRef} onTouchStart={onBodyTouchStart}>{children}</div>
       {actions&&<div className="sheet-actions">{actions}</div>}
     </div>
   </div>;
@@ -1389,7 +1401,7 @@ function OutfitBuilderSheet({wardrobe,outfit,onSave,onClose}){
   </Sheet>;
 }
 
-function OutfitDetailSheet({outfit,wardrobe,onClose,onEdit,onDelete,onMarkWorn}){
+function OutfitDetailSheet({outfit,wardrobe,onClose,onEdit,onDelete,onMarkWorn,onDuplicate}){
   const [showLog,setShowLog]=useState(false);
   const items=outfit.itemIds.map(id=>wardrobe.find(w=>w.id===id)).filter(Boolean);
   const [freeform,setFreeform]=useState(!!outfit.positions);
@@ -1413,8 +1425,9 @@ function OutfitDetailSheet({outfit,wardrobe,onClose,onEdit,onDelete,onMarkWorn})
         <div style={{fontSize:10,color:'var(--muted)',flexShrink:0}}>{daysAgoLabel(item.lastWornDate)}</div>
       </div>)}
     </div>
-    <div style={{display:'flex',gap:8,marginTop:14}}>
+    <div style={{display:'flex',gap:8,marginTop:14,flexWrap:'wrap'}}>
       <button onClick={()=>setShowLog(true)} style={{flex:1,padding:12,background:'var(--green)',color:'#fff',border:'none',borderRadius:12,fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>+ Log wear</button>
+      <button onClick={onDuplicate} style={{flex:1,padding:12,border:'1.5px solid var(--border)',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>⧉ Duplicate</button>
       <button onClick={onEdit} style={{flex:1,padding:12,border:'1.5px solid var(--border)',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Edit</button>
       <button onClick={onDelete} style={{padding:'12px 14px',border:'1.5px solid #EAC8C8',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',color:'var(--red)',fontFamily:"'Jost',sans-serif"}}>🗑</button>
     </div>
@@ -1881,6 +1894,12 @@ function App(){
 
   async function saveOutfit(o){const row=toOR(o);try{if(outfits.find(x=>x.id===o.id)){await sb.upd('outfits',o.id,row);setO(p=>p.map(x=>x.id===o.id?o:x));setSelOutfit(o);}else{await sb.ins('outfits',row);setO(p=>[...p,o]);}}catch(e){console.error(e);}setShowAddO(false);setEditOutfit(false);}
   async function delOutfit(id){try{await sb.del('outfits',id);setO(p=>p.filter(x=>x.id!==id));}catch(e){console.error(e);}setSelOutfit(null);}
+  async function duplicateOutfit(outfit){
+    const copy={...outfit,id:uid(),wearCount:0,lastWornDate:null,
+      tags:[...(outfit.tags||[])],itemIds:[...(outfit.itemIds||[])],
+      slotMap:outfit.slotMap?{...outfit.slotMap}:null,positions:null};
+    try{await sb.ins('outfits',toOR(copy));setO(p=>[...p,copy]);}catch(e){console.error('dup outfit:',e);}
+  }
   async function logOutfitWear(outfit,date){
     const u={...outfit,lastWornDate:date,wearCount:(outfit.wearCount||0)+1};
     try{await sb.upd('outfits',outfit.id,{last_worn_date:date,wear_count:u.wearCount});setO(p=>p.map(x=>x.id===outfit.id?u:x));setSelOutfit(u);}catch(e){console.error(e);}
@@ -2473,7 +2492,7 @@ function App(){
   {selItem&&editItem   && <EditWardrobeSheet   item={selItem} onSave={saveItem} onCancel={()=>setEditItem(false)} stores={stores} onAddStore={addStore} wardrobe={wardrobe} extraBrands={extraBrands} onAddBrand={addBrand} wardrobeColours={wardrobeColours} extraColours={extraColours} onAddColour={addColour}/>}
   {selWish&&!editWish  && <WishDetailSheet item={selWish} similar={findSimilar(selWish,wardrobe)} onClose={()=>setSelWish(null)} onEdit={()=>setEditWish(true)} onDelete={()=>delWish(selWish.id)} onRate={r=>rateWish(selWish.id,r)} onMoveToWardrobe={()=>bought(selWish)}/>}
   {selWish&&editWish   && <EditWishSheet   item={selWish} onSave={saveWish} onCancel={()=>setEditWish(false)} stores={stores} onAddStore={addStore}/>}
-  {selOutfit&&!editOutfit && <OutfitDetailSheet outfit={selOutfit} wardrobe={wardrobe} onClose={()=>setSelOutfit(null)} onEdit={()=>setEditOutfit(true)} onDelete={()=>delOutfit(selOutfit.id)} onMarkWorn={logOutfitWear}/>}
+  {selOutfit&&!editOutfit && <OutfitDetailSheet outfit={selOutfit} wardrobe={wardrobe} onClose={()=>setSelOutfit(null)} onEdit={()=>setEditOutfit(true)} onDelete={()=>delOutfit(selOutfit.id)} onMarkWorn={logOutfitWear} onDuplicate={()=>{duplicateOutfit(selOutfit);setSelOutfit(null);}}/>}
   {selOutfit&&editOutfit  && <OutfitBuilderSheet wardrobe={wardrobe} outfit={selOutfit} onSave={saveOutfit} onClose={()=>setEditOutfit(false)}/>}
   </>;
 }
