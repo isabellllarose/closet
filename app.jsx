@@ -491,10 +491,13 @@ const CSS = `
   @media(min-width:1024px){.outfit-masonry{columns:4;}}
   .outfit-card{background:#fff;border-radius:16px;border:1.5px solid var(--border);overflow:hidden;cursor:pointer;transition:box-shadow .15s;break-inside:avoid;margin-bottom:10px;display:inline-block;width:100%;}
   .outfit-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);}
-  .outfit-stack{display:flex;flex-direction:column;width:100%;background:#fff;overflow:hidden;}
-  .outfit-stack-item{width:100%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#fff;}
-  .outfit-stack-item img{width:100%;display:block;object-fit:contain;max-height:180px;}
-  .outfit-stack-placeholder{min-height:56px;font-size:22px;opacity:.2;}
+  .outfit-stack{position:relative;width:100%;background:var(--cream);overflow:hidden;display:flex;flex-direction:column;align-items:center;padding:6px 4px 2px;gap:0;min-height:120px;}
+  .outfit-stack-item{width:90%;display:flex;align-items:center;justify-content:center;margin-bottom:-18%;}
+  .outfit-stack-item img{width:100%;max-height:120px;object-fit:contain;display:block;mix-blend-mode:multiply;}
+  .outfit-stack-item:last-child{margin-bottom:0;}
+  .outfit-stack-item.small{width:70%;}
+  .outfit-stack-item.xsmall{width:55%;}
+  .outfit-stack-placeholder{min-height:40px;font-size:18px;opacity:.2;display:flex;align-items:center;justify-content:center;}
   .outfit-info{padding:8px 12px 10px;}
   .outfit-name{font-size:12px;font-weight:500;color:var(--ink);}
   .outfit-meta{font-size:10px;color:var(--muted);margin-top:2px;}
@@ -1217,15 +1220,23 @@ function OutfitThumbnail({items, slotMap}){
     ordered=items;
   }
 
+  const SMALL_SLOTS=new Set(['Shoes','Bag']);
+  const XSMALL_SLOTS=new Set(['Jewellery']);
+  // build a slot lookup for size class
+  const slotForId={};
+  if(slotMap){Object.entries(slotMap).forEach(([slot,id])=>{slotForId[id]=slot;});}
+
   return <div className="outfit-stack">
     {ordered.map((item,i)=>{
-      if(item.photoUrl){
-        return <div key={item.id||i} className="outfit-stack-item">
+      const slot=slotForId[item?.id]||'';
+      const sizeClass=XSMALL_SLOTS.has(slot)?'xsmall':SMALL_SLOTS.has(slot)?'small':'';
+      if(item?.photoUrl){
+        return <div key={item.id||i} className={`outfit-stack-item ${sizeClass}`}>
           <img src={item.photoUrl} alt={item.name||''} />
         </div>;
       }
       return <div key={item.id||i} className="outfit-stack-item outfit-stack-placeholder">
-        <span>{CAT_EMOJI[item.category]||'✦'}</span>
+        <span>{CAT_EMOJI[item?.category]||'✦'}</span>
       </div>;
     })}
   </div>;
