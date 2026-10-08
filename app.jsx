@@ -114,8 +114,8 @@ function formatDate(iso) {
 }
 function todayIso() { return new Date().toISOString().slice(0,10); }
 function today2()   { return new Date().toISOString().slice(0,7); }
-function daysAgoLabel(iso) {
-  if (!iso) return 'Never worn';
+function daysAgoLabel(iso, wearCount=0) {
+  if (!iso) return wearCount>0 ? 'Date not recorded' : 'Never worn';
   const d = Math.round((new Date() - new Date(iso)) / 86400000);
   if (d===0) return 'Today'; if (d===1) return 'Yesterday';
   if (d<7)   return `${d}d ago`;
@@ -1507,14 +1507,14 @@ function OutfitDetailSheet({outfit,wardrobe,onClose,onEdit,onDelete,onMarkWorn,o
       :<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>{items.map(item=><div key={item.id} style={{borderRadius:10,overflow:'hidden',background:'#fff',aspectRatio:'1/1',display:'flex',alignItems:'center',justifyContent:'center'}}>{item.photoUrl?<img src={item.photoUrl} alt={item.name} style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>:<span style={{fontSize:28,opacity:.3}}>{CAT_EMOJI[item.category]||'👗'}</span>}</div>)}</div>}
     </div>
     {(outfit.tags||[]).length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:12}}>{(outfit.tags||[]).map(t=><span key={t} style={{padding:'3px 10px',borderRadius:20,fontSize:11,background:'var(--cream)',border:'1.5px solid var(--border)',color:'var(--ink)'}}>{t}</span>)}</div>}
-    <DetailRow label="Last worn" value={outfit.lastWornDate?`${formatDate(outfit.lastWornDate)} (${daysAgoLabel(outfit.lastWornDate)})`:'Never worn'}/>
+    <DetailRow label="Last worn" value={outfit.lastWornDate?`${formatDate(outfit.lastWornDate)} (${daysAgoLabel(outfit.lastWornDate)})`:(outfit.wearCount>0?'Date not recorded':'Never worn')}/>
     <DetailRow label="Times worn" value={outfit.wearCount||0}/>
     <DetailRow label="Notes" value={outfit.notes}/>
     <div style={{marginTop:12}}><div style={{fontSize:10,letterSpacing:1,textTransform:'uppercase',color:'var(--muted)',marginBottom:8}}>Items in this outfit</div>
       {items.map(item=><div key={item.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
         <div style={{width:32,height:32,borderRadius:6,background:'#fff',overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,border:'1px solid var(--border)'}}>{item.photoUrl?<img src={item.photoUrl} alt="" style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>:<span style={{fontSize:14,opacity:.3}}>{CAT_EMOJI[item.category]||'👗'}</span>}</div>
         <div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.name}</div><div style={{fontSize:10,color:'var(--muted)'}}>{item.store||item.brand||item.category}</div></div>
-        <div style={{fontSize:10,color:'var(--muted)',flexShrink:0}}>{daysAgoLabel(item.lastWornDate)}</div>
+        <div style={{fontSize:10,color:'var(--muted)',flexShrink:0}}>{daysAgoLabel(item.lastWornDate,item.wearCount)}</div>
       </div>)}
     </div>
     <div style={{display:'flex',gap:8,marginTop:14,flexWrap:'wrap'}}>
@@ -2060,7 +2060,7 @@ function App(){
   // Item needs attention if missing photo, name, category, size, store, or colour
   const isIncomplete = i => !i.photoUrl||!i.name||!i.category||!i.size||!i.store||(Array.isArray(i.colors)?i.colors.length===0:!i.color);
   const incomplete=activeWardrobe.filter(isIncomplete);
-  const neverWorn = activeWardrobe.filter(i=>!isIncomplete(i)&&!i.lastWornDate&&(!i.wearCount||i.wearCount===0));
+  const neverWorn = activeWardrobe.filter(i=>!isIncomplete(i)&&!i.lastWornDate&&(!i.wearCount||i.wearCount===0)); // excludes items with manual wear count but no date
   const overdueWorn = activeWardrobe.filter(i=>!isIncomplete(i)&&i.lastWornDate&&isOverdue(i.lastWornDate))
     .sort((a,b)=>new Date(a.lastWornDate)-new Date(b.lastWornDate));
   const unworn = [...neverWorn, ...overdueWorn];
@@ -2471,7 +2471,7 @@ function App(){
                     </div>
                     <div className="iinfo">
                       <div className="iname">{item.name||'Untitled'}</div>
-                      <div className="imeta" style={{color:'var(--red)'}}>{item.lastWornDate?daysAgoLabel(item.lastWornDate):'Never worn'}</div>
+                      <div className="imeta" style={{color:'var(--red)'}}>{daysAgoLabel(item.lastWornDate,item.wearCount)}</div>
                     </div>
                   </div>)}
                 </div>
