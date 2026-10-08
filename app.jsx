@@ -491,13 +491,13 @@ const CSS = `
   @media(min-width:1024px){.outfit-masonry{columns:4;}}
   .outfit-card{background:#fff;border-radius:16px;border:1.5px solid var(--border);overflow:hidden;cursor:pointer;transition:box-shadow .15s;break-inside:avoid;margin-bottom:10px;display:inline-block;width:100%;}
   .outfit-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);}
-  .outfit-thumb{width:100%;background:var(--cream);overflow:hidden;display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:6px;box-sizing:border-box;aspect-ratio:1;}
-  .outfit-thumb-col{display:flex;flex-direction:column;gap:3px;justify-content:center;}
+  .outfit-thumb{width:100%;background:var(--cream);overflow:hidden;display:flex;gap:3px;padding:5px;box-sizing:border-box;min-height:130px;max-height:200px;align-items:stretch;}
+  .outfit-thumb-col{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;}
+  .outfit-thumb-col.wide{flex:1.6;}
+  .outfit-thumb-col.narrow{flex:1;}
   .outfit-thumb-img{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:0;}
-  .outfit-thumb-img img{width:100%;height:100%;object-fit:contain;mix-blend-mode:multiply;display:block;}
-  .outfit-thumb-solo{grid-column:1/-1;display:flex;align-items:center;justify-content:center;height:100%;}
-  .outfit-thumb-solo img{max-width:60%;max-height:100%;object-fit:contain;mix-blend-mode:multiply;display:block;}
-  .outfit-thumb-ph{display:flex;align-items:center;justify-content:center;font-size:16px;opacity:.2;flex:1;}
+  .outfit-thumb-img img{width:100%;height:100%;object-fit:contain;mix-blend-mode:multiply;display:block;max-height:96px;}
+  .outfit-thumb-ph{display:flex;align-items:center;justify-content:center;font-size:14px;opacity:.2;flex:1;}
   .outfit-info{padding:8px 12px 10px;}
   .outfit-name{font-size:12px;font-weight:500;color:var(--ink);}
   .outfit-meta{font-size:10px;color:var(--muted);margin-top:2px;}
@@ -659,16 +659,30 @@ function DateField({ label, value, onChange }) {
   );
 }
 
-function LogWearModal({ onLog, onClose }) {
+function LogWearModal({ onLog, onClose, currentCount=0 }) {
   const [date, setDate] = useState(todayIso());
+  const [manualCount, setManualCount] = useState('');
+  const [mode, setMode] = useState('date'); // 'date' | 'manual'
   return (
     <div className="cal-overlay" onClick={onClose}>
       <div className="cal-box" onClick={e=>e.stopPropagation()}>
-        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,fontWeight:300,marginBottom:14}}>Log a wear</div>
-        <DateField label="Date worn" value={date} onChange={setDate}/>
-        <div style={{display:'flex',gap:8,marginTop:4}}>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,fontWeight:300,marginBottom:14}}>Log wear</div>
+        <div style={{display:'flex',gap:0,marginBottom:14,borderRadius:8,overflow:'hidden',border:'1.5px solid var(--border)'}}>
+          <button onClick={()=>setMode('date')} style={{flex:1,padding:'7px 0',fontSize:12,border:'none',background:mode==='date'?'var(--ink)':'#fff',color:mode==='date'?'#fff':'var(--muted)',cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>By date</button>
+          <button onClick={()=>setMode('manual')} style={{flex:1,padding:'7px 0',fontSize:12,border:'none',background:mode==='manual'?'var(--ink)':'#fff',color:mode==='manual'?'#fff':'var(--muted)',cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Set total</button>
+        </div>
+        {mode==='date'
+          ? <DateField label="Date worn" value={date} onChange={setDate}/>
+          : <FGrp label={`Total wears (currently ${currentCount})`}>
+              <FInp type="number" min="0" value={manualCount} placeholder={String(currentCount)} onChange={e=>setManualCount(e.target.value)}/>
+            </FGrp>
+        }
+        <div style={{display:'flex',gap:8,marginTop:12}}>
           <button onClick={onClose} style={{flex:1,padding:'10px',border:'1.5px solid var(--border)',borderRadius:10,background:'none',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Cancel</button>
-          <button onClick={()=>{if(date){onLog(date);onClose();}}} style={{flex:1,padding:'10px',border:'none',borderRadius:10,background:'var(--ink)',color:'#fff',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Save</button>
+          <button onClick={()=>{
+            if(mode==='date'){if(date){onLog(date,null);onClose();}}
+            else{const n=parseInt(manualCount);if(!isNaN(n)&&n>=0){onLog(null,n);onClose();}}
+          }} style={{flex:1,padding:'10px',border:'none',borderRadius:10,background:'var(--ink)',color:'#fff',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Save</button>
         </div>
       </div>
     </div>
@@ -1095,7 +1109,7 @@ function WardrobeDetailSheet({item,onClose,onEdit,onLogWear,onDelete,onToggleFav
         {item.archived?'↩ Restore':'📦 Donate / sell'}
       </button>
     </div>
-    {showLog&&<LogWearModal onLog={date=>onLogWear(item,date)} onClose={()=>setShowLog(false)}/>}
+    {showLog&&<LogWearModal currentCount={item.wearCount||0} onLog={(date,manual)=>onLogWear(item,date,manual)} onClose={()=>setShowLog(false)}/>}
     {showPairPicker&&<div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:400,display:'flex',alignItems:'flex-end',justifyContent:'center',backdropFilter:'blur(4px)'}} onClick={()=>setShowPairPicker(false)}>
       <div style={{background:'var(--panel)',borderRadius:'24px 24px 0 0',maxHeight:'80vh',width:'100%',maxWidth:580,display:'flex',flexDirection:'column',overflow:'hidden'}} onClick={e=>e.stopPropagation()}>
         <div style={{width:36,height:4,background:'var(--border)',borderRadius:2,margin:'14px auto 0',flexShrink:0}}/>
@@ -1205,64 +1219,76 @@ function WishDetailSheet({item,similar,onClose,onEdit,onDelete,onRate,onMoveToWa
 function OutfitThumbnail({items, slotMap}){
   if(!items||items.length===0)return <div style={{padding:'24px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,opacity:.15}}>✦</div>;
 
-  // Build slot→item map
-  const bySlot={};
-  if(slotMap && Object.keys(slotMap).length>0){
-    Object.entries(slotMap).forEach(([slot,id])=>{
-      const it=items.find(i=>i.id===id);
-      if(it) bySlot[slot]=it;
-    });
-  } else {
-    // fallback: guess from category
-    items.forEach(it=>{
-      const cat=it.category||'';
-      if(!bySlot.Top&&['Tops','Dresses','Jumpsuits','Knitwear','Shirts'].some(c=>cat.includes(c))) bySlot.Top=it;
-      else if(!bySlot.Outer&&['Outerwear','Jackets','Blazers','Coats'].some(c=>cat.includes(c))) bySlot.Outer=it;
-      else if(!bySlot.Bottom&&['Bottoms','Jeans','Pants','Skirts','Shorts'].some(c=>cat.includes(c))) bySlot.Bottom=it;
-      else if(!bySlot.Shoes&&cat.includes('Shoe')) bySlot.Shoes=it;
-      else if(!bySlot.Bag&&cat.includes('Bag')) bySlot.Bag=it;
-      else if(!bySlot.Jewellery&&(cat.includes('Jewel')||cat.includes('Access'))) bySlot.Jewellery=it;
-    });
-  }
+  const img=(item,key)=>item?.photoUrl
+    ?<div key={key} className="outfit-thumb-img"><img src={item.photoUrl} alt={item.name||''}/></div>
+    :<div key={key} className="outfit-thumb-img"><div className="outfit-thumb-ph">{CAT_EMOJI[item?.category]||'✦'}</div></div>;
 
-  const img=(item)=>item?.photoUrl
-    ?<img src={item.photoUrl} alt={item.name||''}/>
-    :<div className="outfit-thumb-ph">{CAT_EMOJI[item?.category]||'✦'}</div>;
-
-  const isDress=bySlot.Top&&['Dress','Jumpsuit'].some(k=>(bySlot.Top.category||bySlot.Top.subcategory||'').includes(k));
-
-  // Left col: Top + Bottom (or Dress alone spanning full width)
-  // Right col: Outer → Bag → Shoes
-  const leftItems=[bySlot.Top, bySlot.Bottom].filter(Boolean);
-  const rightItems=[bySlot.Outer, bySlot.Bag, bySlot.Shoes].filter(Boolean);
-
-  // Solo dress + accessories: dress takes left, accessories on right
-  // Single item: centre it
-  if(leftItems.length===0&&rightItems.length===0){
-    const solo=items[0];
-    return <div className="outfit-thumb">
-      <div className="outfit-thumb-solo">{img(solo)}</div>
+  // Single item — centred, large
+  if(items.length===1){
+    return <div className="outfit-thumb" style={{justifyContent:'center'}}>
+      <div className="outfit-thumb-col" style={{maxWidth:'70%'}}>
+        {img(items[0],'s0')}
+      </div>
     </div>;
   }
 
-  // If only a dress (no separate bottom) and it looks like a dress, give it more space
-  const dressOnly=isDress&&!bySlot.Bottom;
+  // 2 items — always side by side
+  if(items.length===2){
+    return <div className="outfit-thumb">
+      <div className="outfit-thumb-col">{img(items[0],'a0')}</div>
+      <div className="outfit-thumb-col">{img(items[1],'a1')}</div>
+    </div>;
+  }
+
+  // 3+ items: build slot buckets, put ALL items somewhere
+  const bySlot={};
+  const usedIds=new Set();
+  if(slotMap && Object.keys(slotMap).length>0){
+    Object.entries(slotMap).forEach(([slot,id])=>{
+      const it=items.find(i=>i.id===id);
+      if(it){bySlot[slot]=it;usedIds.add(it.id);}
+    });
+  }
+  // fallback guess for anything without a slotMap entry
+  items.forEach(it=>{
+    if(usedIds.has(it.id))return;
+    const cat=(it.category||'')+(it.subcategory||'');
+    if(!bySlot.Top&&['Top','Dress','Jumpsuit','Knit','Shirt','Blouse','Tee','Tank','Crop','Bra','Bodice','Corset','Vest','Cami'].some(k=>cat.includes(k))){bySlot.Top=it;usedIds.add(it.id);}
+    else if(!bySlot.Outer&&['Outer','Jacket','Blazer','Coat','Puffer','Hoodie','Cardigan','Fleece','Gilet'].some(k=>cat.includes(k))){bySlot.Outer=it;usedIds.add(it.id);}
+    else if(!bySlot.Bottom&&['Bottom','Jean','Pant','Skirt','Short','Legging','Flare','Tracksuit'].some(k=>cat.includes(k))){bySlot.Bottom=it;usedIds.add(it.id);}
+    else if(!bySlot.Shoes&&['Shoe','Boot','Heel','Sneaker','Sandal','Flat','Loafer','Mule'].some(k=>cat.includes(k))){bySlot.Shoes=it;usedIds.add(it.id);}
+    else if(!bySlot.Bag&&['Bag','Tote','Clutch','Purse','Crossbody'].some(k=>cat.includes(k))){bySlot.Bag=it;usedIds.add(it.id);}
+    else if(!bySlot.Jewellery&&['Jewel','Access','Scarf','Hat','Belt','Sunglass'].some(k=>cat.includes(k))){bySlot.Jewellery=it;usedIds.add(it.id);}
+  });
+  // anything still unassigned goes into "extra"
+  const extra=items.filter(it=>!usedIds.has(it.id));
+
+  const isDress=bySlot.Top&&['Dress','Jumpsuit'].some(k=>(bySlot.Top.category||bySlot.Top.subcategory||'').includes(k));
+
+  // Left col: Top + Bottom
+  const leftItems=[bySlot.Top, bySlot.Bottom].filter(Boolean);
+  // Right col: Outer + Bag + Shoes + Jewellery + extras
+  const rightItems=[bySlot.Outer, bySlot.Bag, bySlot.Shoes, bySlot.Jewellery, ...extra].filter(Boolean);
+
+  // If left is empty, spread everything across both cols evenly
+  if(leftItems.length===0){
+    const half=Math.ceil(rightItems.length/2);
+    return <div className="outfit-thumb">
+      <div className="outfit-thumb-col">{rightItems.slice(0,half).map((it,i)=>img(it,it.id||i))}</div>
+      <div className="outfit-thumb-col">{rightItems.slice(half).map((it,i)=>img(it,it.id||i))}</div>
+    </div>;
+  }
+
+  // Dress with no bottom: dress col gets more width
+  const dressWide=isDress&&!bySlot.Bottom;
 
   return <div className="outfit-thumb">
-    {/* Left column */}
-    <div className="outfit-thumb-col">
-      {leftItems.length>0
-        ? leftItems.map((it,i)=><div key={it.id||i} className="outfit-thumb-img" style={dressOnly?{flex:2}:{}}>{img(it)}</div>)
-        : <div className="outfit-thumb-img" style={{opacity:.08,fontSize:20,display:'flex',alignItems:'center',justifyContent:'center'}}>✦</div>
-      }
+    <div className={`outfit-thumb-col ${dressWide?'wide':''}`}>
+      {leftItems.map((it,i)=>img(it,it.id||i))}
     </div>
-    {/* Right column */}
-    <div className="outfit-thumb-col">
-      {rightItems.length>0
-        ? rightItems.map((it,i)=><div key={it.id||i} className="outfit-thumb-img">{img(it)}</div>)
-        : <div className="outfit-thumb-img" style={{opacity:.08,fontSize:20,display:'flex',alignItems:'center',justifyContent:'center'}}>✦</div>
-      }
-    </div>
+    {rightItems.length>0&&<div className="outfit-thumb-col narrow">
+      {rightItems.map((it,i)=>img(it,it.id||i))}
+    </div>}
   </div>;
 }
 
@@ -1480,7 +1506,7 @@ function OutfitDetailSheet({outfit,wardrobe,onClose,onEdit,onDelete,onMarkWorn,o
       <button onClick={onEdit} style={{flex:1,padding:12,border:'1.5px solid var(--border)',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',fontFamily:"'Jost',sans-serif"}}>Edit</button>
       <button onClick={onDelete} style={{padding:'12px 14px',border:'1.5px solid #EAC8C8',borderRadius:12,background:'none',fontSize:13,cursor:'pointer',color:'var(--red)',fontFamily:"'Jost',sans-serif"}}>🗑</button>
     </div>
-    {showLog&&<LogWearModal onLog={date=>onMarkWorn(outfit,date)} onClose={()=>setShowLog(false)}/>}
+    {showLog&&<LogWearModal currentCount={outfit.wearCount||0} onLog={(date,manual)=>onMarkWorn(outfit,date,manual)} onClose={()=>setShowLog(false)}/>}
   </Sheet>;
 }
 
@@ -1737,7 +1763,13 @@ function App(){
   async function addItem(i){try{await sb.ins('wardrobe',toRow(i));setW(p=>[...p,i]);}catch(e){console.error(e);}setShowAddW(false);}
   async function saveItem(i){const complete=!!(i.name&&i.category&&(i.size||i.brand));const u={...i,complete};try{await sb.upd('wardrobe',i.id,toRow(u));setW(p=>p.map(x=>x.id===i.id?u:x));setSelItem(u);}catch(e){console.error(e);}setEditItem(false);}
   async function delItem(id){try{await sb.del('wardrobe',id);setW(p=>p.filter(x=>x.id!==id));}catch(e){console.error(e);}setSelItem(null);}
-  async function logWear(item,date){const u={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};try{await sb.upd('wardrobe',item.id,{last_worn_date:date,wear_count:u.wearCount});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
+  async function logWear(item,date,manualCount=null){
+    const u=manualCount!==null
+      ?{...item,wearCount:manualCount}
+      :{...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};
+    const patch=manualCount!==null?{wear_count:manualCount}:{last_worn_date:date,wear_count:u.wearCount};
+    try{await sb.upd('wardrobe',item.id,patch);setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}
+  }
   async function toggleFavourite(item){const u={...item,favourite:!item.favourite};try{await sb.upd('wardrobe',item.id,{favourite:u.favourite});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
   async function toggleArchive(item){const u={...item,archived:!item.archived};try{await sb.upd('wardrobe',item.id,{archived:u.archived});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
   async function toggleStandby(item){const u={...item,standby:!item.standby};try{await sb.upd('wardrobe',item.id,{standby:u.standby});setW(p=>p.map(x=>x.id===item.id?u:x));setSelItem(u);}catch(e){console.error(e);}}
@@ -1949,10 +1981,15 @@ function App(){
       slotMap:outfit.slotMap?{...outfit.slotMap}:null,positions:null};
     try{await sb.ins('outfits',toOR(copy));setO(p=>[...p,copy]);}catch(e){console.error('dup outfit:',e);}
   }
-  async function logOutfitWear(outfit,date){
-    const u={...outfit,lastWornDate:date,wearCount:(outfit.wearCount||0)+1};
-    try{await sb.upd('outfits',outfit.id,{last_worn_date:date,wear_count:u.wearCount});setO(p=>p.map(x=>x.id===outfit.id?u:x));setSelOutfit(u);}catch(e){console.error(e);}
-    for(const id of outfit.itemIds){const item=wardrobe.find(w=>w.id===id);if(!item)continue;const ui={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};try{await sb.upd('wardrobe',id,{last_worn_date:date,wear_count:ui.wearCount});setW(p=>p.map(x=>x.id===id?ui:x));}catch(e){console.error(e);}}
+  async function logOutfitWear(outfit,date,manualCount=null){
+    const u=manualCount!==null
+      ?{...outfit,wearCount:manualCount}
+      :{...outfit,lastWornDate:date,wearCount:(outfit.wearCount||0)+1};
+    const patch=manualCount!==null?{wear_count:manualCount}:{last_worn_date:date,wear_count:u.wearCount};
+    try{await sb.upd('outfits',outfit.id,patch);setO(p=>p.map(x=>x.id===outfit.id?u:x));setSelOutfit(u);}catch(e){console.error(e);}
+    if(date){
+      for(const id of outfit.itemIds){const item=wardrobe.find(w=>w.id===id);if(!item)continue;const ui={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};try{await sb.upd('wardrobe',id,{last_worn_date:date,wear_count:ui.wearCount});setW(p=>p.map(x=>x.id===id?ui:x));}catch(e){console.error(e);}}
+    }
   }
 
   const activeWardrobe = wardrobe.filter(i=>!i.archived);
