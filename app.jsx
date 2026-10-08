@@ -491,18 +491,10 @@ const CSS = `
   @media(min-width:1024px){.outfit-masonry{columns:4;}}
   .outfit-card{background:#fff;border-radius:16px;border:1.5px solid var(--border);overflow:hidden;cursor:pointer;transition:box-shadow .15s;break-inside:avoid;margin-bottom:10px;display:inline-block;width:100%;}
   .outfit-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);}
-  .outfit-photos.single img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block;}
-  .outfit-photos.two{display:grid;grid-template-columns:1fr 1fr;gap:2px;}
-  .outfit-photos.two .ph{aspect-ratio:2/3;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#fff;}
-  .outfit-photos.two .ph img{width:100%;height:100%;object-fit:contain;}
-  .outfit-photos.three{display:grid;grid-template-columns:1fr 1fr;gap:2px;}
-  .outfit-photos.three .ph:first-child{grid-column:1/-1;aspect-ratio:3/2;}
-  .outfit-photos.three .ph{overflow:hidden;display:flex;align-items:center;justify-content:center;background:#fff;}
-  .outfit-photos.three .ph:not(:first-child){aspect-ratio:1;}
-  .outfit-photos.three .ph img,.outfit-photos.four .ph img{width:100%;height:100%;object-fit:contain;}
-  .outfit-photos.four{display:grid;grid-template-columns:1fr 1fr;gap:2px;}
-  .outfit-photos.four .ph{aspect-ratio:1;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#fff;}
-  .ph-empty{display:flex;align-items:center;justify-content:center;font-size:22px;opacity:.2;width:100%;height:100%;}
+  .outfit-stack{display:flex;flex-direction:column;width:100%;background:#fff;overflow:hidden;}
+  .outfit-stack-item{width:100%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#fff;}
+  .outfit-stack-item img{width:100%;display:block;object-fit:contain;max-height:180px;}
+  .outfit-stack-placeholder{min-height:56px;font-size:22px;opacity:.2;}
   .outfit-info{padding:8px 12px 10px;}
   .outfit-name{font-size:12px;font-weight:500;color:var(--ink);}
   .outfit-meta{font-size:10px;color:var(--muted);margin-top:2px;}
@@ -1207,14 +1199,36 @@ function WishDetailSheet({item,similar,onClose,onEdit,onDelete,onRate,onMoveToWa
 }
 
 // ── Outfit components ─────────────────────────────────────────────────────────
-function OutfitThumbnail({items}){
-  const n=items.length;
-  const ph=(item)=><div className="ph">{item?.photoUrl?<img src={item.photoUrl} alt=""/>:<div className="ph-empty">{CAT_EMOJI[item?.category]||'✦'}</div>}</div>;
-  if(n===0)return <div style={{padding:'24px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,opacity:.15}}>✦</div>;
-  if(n===1)return <div className="outfit-photos single">{items[0].photoUrl?<img src={items[0].photoUrl} alt=""/>:<div style={{aspectRatio:'3/4',display:'flex',alignItems:'center',justifyContent:'center',fontSize:48,opacity:.2}}>{CAT_EMOJI[items[0].category]||'✦'}</div>}</div>;
-  if(n===2)return <div className="outfit-photos two">{items.map((it,i)=>ph(it))}</div>;
-  if(n===3)return <div className="outfit-photos three">{items.map((it,i)=>ph(it))}</div>;
-  return <div className="outfit-photos four">{items.slice(0,4).map((it,i)=>ph(it))}</div>;
+const SLOT_ORDER=['Top','Outer','Bottom','Shoes','Bag','Jewellery'];
+function OutfitThumbnail({items, slotMap}){
+  if(!items||items.length===0)return <div style={{padding:'24px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,opacity:.15}}>✦</div>;
+
+  // Build ordered list using slotMap if available, else original order
+  let ordered=[];
+  if(slotMap && Object.keys(slotMap).length>0){
+    const usedIds=new Set();
+    SLOT_ORDER.forEach(slot=>{
+      const id=slotMap[slot];
+      if(id){const it=items.find(i=>i.id===id);if(it&&!usedIds.has(it.id)){ordered.push(it);usedIds.add(it.id);}}
+    });
+    // Append any items not in slotMap (fallback)
+    items.forEach(it=>{if(!usedIds.has(it.id)){ordered.push(it);}});
+  } else {
+    ordered=items;
+  }
+
+  return <div className="outfit-stack">
+    {ordered.map((item,i)=>{
+      if(item.photoUrl){
+        return <div key={item.id||i} className="outfit-stack-item">
+          <img src={item.photoUrl} alt={item.name||''} />
+        </div>;
+      }
+      return <div key={item.id||i} className="outfit-stack-item outfit-stack-placeholder">
+        <span>{CAT_EMOJI[item.category]||'✦'}</span>
+      </div>;
+    })}
+  </div>;
 }
 
 function FreeformCanvas({items,positions,onPositionsChange}){
@@ -2196,7 +2210,7 @@ function App(){
                         <span style={{color:'#fff',fontSize:12,lineHeight:1}}>⠿</span>
                       </div>
                     </div>}
-                    <OutfitThumbnail items={items}/>
+                    <OutfitThumbnail items={items} slotMap={outfit.slotMap}/>
                     <div className="outfit-info">
                       <div style={{display:'flex',flexWrap:'wrap',gap:3,marginBottom:3}}>
                         {(outfit.tags||[]).slice(0,3).map(t=><span key={t} style={{fontSize:9,padding:'2px 6px',borderRadius:10,background:'var(--cream)',border:'1px solid var(--border)'}}>{t}</span>)}
