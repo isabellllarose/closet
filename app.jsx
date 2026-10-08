@@ -491,13 +491,14 @@ const CSS = `
   @media(min-width:1024px){.outfit-masonry{columns:4;}}
   .outfit-card{background:#fff;border-radius:16px;border:1.5px solid var(--border);overflow:hidden;cursor:pointer;transition:box-shadow .15s;break-inside:avoid;margin-bottom:10px;display:inline-block;width:100%;}
   .outfit-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);}
-  .outfit-thumb{width:100%;background:var(--cream);overflow:hidden;display:flex;gap:3px;padding:5px;box-sizing:border-box;min-height:130px;max-height:200px;align-items:stretch;}
-  .outfit-thumb-col{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;}
-  .outfit-thumb-col.wide{flex:1.6;}
+  .outfit-thumb{width:100%;background:var(--cream);overflow:hidden;display:flex;gap:4px;padding:5px;box-sizing:border-box;min-height:120px;max-height:190px;align-items:stretch;}
+  .outfit-thumb-col{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0;}
+  .outfit-thumb-col.wide{flex:1.55;}
   .outfit-thumb-col.narrow{flex:1;}
-  .outfit-thumb-img{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:0;}
-  .outfit-thumb-img img{width:100%;height:100%;object-fit:contain;mix-blend-mode:multiply;display:block;max-height:96px;}
-  .outfit-thumb-ph{display:flex;align-items:center;justify-content:center;font-size:14px;opacity:.2;flex:1;}
+  .outfit-thumb-img{flex:1;min-height:0;display:flex;}
+  .outfit-thumb-bg{flex:1;background:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:3px;}
+  .outfit-thumb-bg img{width:100%;height:100%;object-fit:contain;display:block;max-height:88px;}
+  .outfit-thumb-ph{display:flex;align-items:center;justify-content:center;font-size:14px;opacity:.2;width:100%;height:100%;}
   .outfit-info{padding:8px 12px 10px;}
   .outfit-name{font-size:12px;font-weight:500;color:var(--ink);}
   .outfit-meta{font-size:10px;color:var(--muted);margin-top:2px;}
@@ -1219,16 +1220,61 @@ function WishDetailSheet({item,similar,onClose,onEdit,onDelete,onRate,onMoveToWa
 function OutfitThumbnail({items, slotMap}){
   if(!items||items.length===0)return <div style={{padding:'24px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,opacity:.15}}>✦</div>;
 
-  const img=(item,key)=>item?.photoUrl
-    ?<div key={key} className="outfit-thumb-img"><img src={item.photoUrl} alt={item.name||''}/></div>
-    :<div key={key} className="outfit-thumb-img"><div className="outfit-thumb-ph">{CAT_EMOJI[item?.category]||'✦'}</div></div>;
+  const img=(item,key)=>{
+    const content=item?.photoUrl
+      ?<img src={item.photoUrl} alt={item.name||''}/>
+      :<div className="outfit-thumb-ph">{CAT_EMOJI[item?.category]||'✦'}</div>;
+    return <div key={key} className="outfit-thumb-img"><div className="outfit-thumb-bg">{content}</div></div>;
+  };
 
-  // Single item — centred, large
+  // ── Slot assignment using exact category names ──
+  const bySlot={};
+  const usedIds=new Set();
+
+  // 1. Use saved slotMap first (most accurate)
+  if(slotMap && Object.keys(slotMap).length>0){
+    Object.entries(slotMap).forEach(([slot,id])=>{
+      const it=items.find(i=>i.id===id);
+      if(it){bySlot[slot]=it;usedIds.add(it.id);}
+    });
+  }
+
+  // 2. Fallback: match on exact category, then subcategory for Activewear split
+  const ACTIVE_TOP_SUBS=new Set(['Sports tops','Sports bras','Gym sets','Tracksuit set']);
+  const ACTIVE_BOT_SUBS=new Set(['Sports bottoms','Shorts','Leggings','Flares','Bike shorts','Tracksuit pants']);
+  const ACTIVE_OUTER_SUBS=new Set(['Sports jacket']);
+  items.forEach(it=>{
+    if(usedIds.has(it.id))return;
+    const cat=it.category||'';
+    const sub=it.subcategory||'';
+    if(cat==='Tops'||cat==='Dresses'||cat==='Jumpsuits'||cat==='Swimwear'||cat==='Lingerie'||cat==='Pyjamas'){
+      if(!bySlot.Top){bySlot.Top=it;usedIds.add(it.id);}
+    } else if(cat==='Activewear'){
+      if(ACTIVE_OUTER_SUBS.has(sub)){if(!bySlot.Outer){bySlot.Outer=it;usedIds.add(it.id);}}
+      else if(ACTIVE_BOT_SUBS.has(sub)){if(!bySlot.Bottom){bySlot.Bottom=it;usedIds.add(it.id);}}
+      else{if(!bySlot.Top){bySlot.Top=it;usedIds.add(it.id);}} // sports tops/bras/unknown → Top
+    } else if(cat==='Outerwear'){
+      if(!bySlot.Outer){bySlot.Outer=it;usedIds.add(it.id);}
+    } else if(cat==='Bottoms'){
+      if(!bySlot.Bottom){bySlot.Bottom=it;usedIds.add(it.id);}
+    } else if(cat==='Shoes'){
+      if(!bySlot.Shoes){bySlot.Shoes=it;usedIds.add(it.id);}
+    } else if(cat==='Bags'){
+      if(!bySlot.Bag){bySlot.Bag=it;usedIds.add(it.id);}
+    } else if(cat==='Accessories'){
+      if(!bySlot.Jewellery){bySlot.Jewellery=it;usedIds.add(it.id);}
+    }
+  });
+  const extra=items.filter(it=>!usedIds.has(it.id));
+
+  const isDress=['Dresses','Jumpsuits'].includes(bySlot.Top?.category||'');
+  const leftItems=[bySlot.Top, bySlot.Bottom].filter(Boolean);
+  const rightItems=[bySlot.Outer, bySlot.Shoes, bySlot.Bag, bySlot.Jewellery, ...extra].filter(Boolean);
+
+  // Single item
   if(items.length===1){
     return <div className="outfit-thumb" style={{justifyContent:'center'}}>
-      <div className="outfit-thumb-col" style={{maxWidth:'70%'}}>
-        {img(items[0],'s0')}
-      </div>
+      <div className="outfit-thumb-col" style={{maxWidth:'70%'}}>{img(items[0],'s0')}</div>
     </div>;
   }
 
@@ -1240,53 +1286,24 @@ function OutfitThumbnail({items, slotMap}){
     </div>;
   }
 
-  // 3+ items: build slot buckets, put ALL items somewhere
-  const bySlot={};
-  const usedIds=new Set();
-  if(slotMap && Object.keys(slotMap).length>0){
-    Object.entries(slotMap).forEach(([slot,id])=>{
-      const it=items.find(i=>i.id===id);
-      if(it){bySlot[slot]=it;usedIds.add(it.id);}
-    });
-  }
-  // fallback guess for anything without a slotMap entry
-  items.forEach(it=>{
-    if(usedIds.has(it.id))return;
-    const cat=(it.category||'')+(it.subcategory||'');
-    if(!bySlot.Top&&['Top','Dress','Jumpsuit','Knit','Shirt','Blouse','Tee','Tank','Crop','Bra','Bodice','Corset','Vest','Cami'].some(k=>cat.includes(k))){bySlot.Top=it;usedIds.add(it.id);}
-    else if(!bySlot.Outer&&['Outer','Jacket','Blazer','Coat','Puffer','Hoodie','Cardigan','Fleece','Gilet'].some(k=>cat.includes(k))){bySlot.Outer=it;usedIds.add(it.id);}
-    else if(!bySlot.Bottom&&['Bottom','Jean','Pant','Skirt','Short','Legging','Flare','Tracksuit'].some(k=>cat.includes(k))){bySlot.Bottom=it;usedIds.add(it.id);}
-    else if(!bySlot.Shoes&&['Shoe','Boot','Heel','Sneaker','Sandal','Flat','Loafer','Mule'].some(k=>cat.includes(k))){bySlot.Shoes=it;usedIds.add(it.id);}
-    else if(!bySlot.Bag&&['Bag','Tote','Clutch','Purse','Crossbody'].some(k=>cat.includes(k))){bySlot.Bag=it;usedIds.add(it.id);}
-    else if(!bySlot.Jewellery&&['Jewel','Access','Scarf','Hat','Belt','Sunglass'].some(k=>cat.includes(k))){bySlot.Jewellery=it;usedIds.add(it.id);}
-  });
-  // anything still unassigned goes into "extra"
-  const extra=items.filter(it=>!usedIds.has(it.id));
-
-  const isDress=bySlot.Top&&['Dress','Jumpsuit'].some(k=>(bySlot.Top.category||bySlot.Top.subcategory||'').includes(k));
-
-  // Left col: Top + Bottom
-  const leftItems=[bySlot.Top, bySlot.Bottom].filter(Boolean);
-  // Right col: Outer + Bag + Shoes + Jewellery + extras
-  const rightItems=[bySlot.Outer, bySlot.Bag, bySlot.Shoes, bySlot.Jewellery, ...extra].filter(Boolean);
-
-  // If left is empty, spread everything across both cols evenly
+  // Left empty: spread evenly
   if(leftItems.length===0){
-    const half=Math.ceil(rightItems.length/2);
+    const all=[bySlot.Outer, bySlot.Shoes, bySlot.Bag, bySlot.Jewellery, ...extra].filter(Boolean);
+    const half=Math.ceil(all.length/2);
     return <div className="outfit-thumb">
-      <div className="outfit-thumb-col">{rightItems.slice(0,half).map((it,i)=>img(it,it.id||i))}</div>
-      <div className="outfit-thumb-col">{rightItems.slice(half).map((it,i)=>img(it,it.id||i))}</div>
+      <div className="outfit-thumb-col">{all.slice(0,half).map((it,i)=>img(it,it.id||i))}</div>
+      <div className="outfit-thumb-col">{all.slice(half).map((it,i)=>img(it,it.id||i))}</div>
     </div>;
   }
 
-  // Dress with no bottom: dress col gets more width
+  // Dress with no separate bottom: give dress more width
   const dressWide=isDress&&!bySlot.Bottom;
 
   return <div className="outfit-thumb">
-    <div className={`outfit-thumb-col ${dressWide?'wide':''}`}>
+    <div className={`outfit-thumb-col${dressWide?' wide':''}`}>
       {leftItems.map((it,i)=>img(it,it.id||i))}
     </div>
-    {rightItems.length>0&&<div className="outfit-thumb-col narrow">
+    {rightItems.length>0&&<div className={`outfit-thumb-col${dressWide?' narrow':''}`}>
       {rightItems.map((it,i)=>img(it,it.id||i))}
     </div>}
   </div>;
