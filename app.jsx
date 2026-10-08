@@ -2005,7 +2005,16 @@ function App(){
     const patch=manualCount!==null?{wear_count:manualCount}:{last_worn_date:date,wear_count:u.wearCount};
     try{await sb.upd('outfits',outfit.id,patch);setO(p=>p.map(x=>x.id===outfit.id?u:x));setSelOutfit(u);}catch(e){console.error(e);}
     if(date){
-      for(const id of outfit.itemIds){const item=wardrobe.find(w=>w.id===id);if(!item)continue;const ui={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};try{await sb.upd('wardrobe',id,{last_worn_date:date,wear_count:ui.wearCount});setW(p=>p.map(x=>x.id===id?ui:x));}catch(e){console.error(e);}}
+      for(const id of outfit.itemIds){
+        const item=wardrobe.find(w=>w.id===id);if(!item)continue;
+        const ui={...item,lastWornDate:date,wearCount:(item.wearCount||0)+1};
+        try{
+          await sb.upd('wardrobe',id,{last_worn_date:date,wear_count:ui.wearCount});
+          setW(p=>p.map(x=>x.id===id?ui:x));
+          // keep selItem in sync if user has that wardrobe item open
+          setSelItem(prev=>prev&&prev.id===id?ui:prev);
+        }catch(e){console.error(e);}
+      }
     }
   }
 
